@@ -1,0 +1,13 @@
+Cerebro Strategic Memory
+
+Repository: https://github.com/NurzhanMukhitov/cerebro-memory
+
+This repository serves as the strategic memory layer for the Cerebro AI system.
+
+GitHub = Source of Truth
+Telegram = Interface
+Advisors = Internal analytical layer
+Chief of Staff = Final synthesis layer
+
+All confirmed strategic decisions are stored in the Decision Ledger.
+
