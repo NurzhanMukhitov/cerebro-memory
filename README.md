@@ -2,6 +2,8 @@ Cerebro Strategic Memory
 
 Repository: https://github.com/NurzhanMukhitov/cerebro-memory
 
+**Source Prompt:** [CEREBRO Manifest](core/manifest.md)
+
 This repository serves as the strategic memory layer for the Cerebro AI system.
 
 GitHub = Source of Truth
