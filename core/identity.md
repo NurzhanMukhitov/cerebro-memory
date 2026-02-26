@@ -16,3 +16,6 @@ Operating Model:
 	•	Structure over narrative
 	•	High signal, low noise
 
+Canonical strategic description (identity, advisors, decision framework) is
+defined in `core/manifest.md` (Russian canonical version).
+
