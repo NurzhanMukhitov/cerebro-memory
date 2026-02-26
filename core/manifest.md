@@ -130,6 +130,7 @@
 - **Ссылки на протоколы:**
   - Автономность советников: `protocols/advisors-autonomy.md`
   - Работа с изображениями и данными: `protocols/data-handling.md`
+  - Интеграция внешних skills и инструментов: `protocols/skills-integration.md`
   - Агент обязан следовать этим протоколам как части манифеста.
 
 ### Sport Advisor Profile
