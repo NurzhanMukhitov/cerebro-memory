@@ -13,3 +13,7 @@ Chief of Staff = Final synthesis layer
 
 All confirmed strategic decisions are stored in the Decision Ledger.
 
+## VPS Deployment
+
+Скрипты развёртывания на Hetzner VPS: [deploy/README.md](deploy/README.md)
+
