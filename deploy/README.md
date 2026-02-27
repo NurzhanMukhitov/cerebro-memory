@@ -75,6 +75,13 @@ chmod +x ~/phase3-config.sh
 ~/phase3-config.sh
 ```
 
+Профиль пользователя (чтобы бот «знал» часовой пояс и базовый контекст) лежит в репо: `core/user-profile.md`. Скрипт phase3 при наличии папки `~/.openclaw/workspace` создаёт симлинк `~/.openclaw/workspace/USER.md` → `~/cerebro-memory/core/user-profile.md`. Если phase3 уже выполнялся до появления user-profile, один раз вручную на VPS:
+
+```bash
+ln -sf ~/cerebro-memory/core/user-profile.md ~/.openclaw/workspace/USER.md
+systemctl --user restart openclaw-gateway
+```
+
 ### 7. Фаза 4: Headless Chrome
 
 ```bash

@@ -29,5 +29,10 @@ if [ -f ~/cerebro-memory/core/manifest.md ] && [ ! -L ~/.openclaw/SOUL.md ]; the
   ln -sf ~/cerebro-memory/core/manifest.md ~/.openclaw/SOUL.md 2>/dev/null || true
 fi
 
+# 3.4 Symlink USER.md (профиль пользователя — часовой пояс, локаль, обращение)
+if [ -f ~/cerebro-memory/core/user-profile.md ] && [ -d ~/.openclaw/workspace ]; then
+  ln -sf ~/cerebro-memory/core/user-profile.md ~/.openclaw/workspace/USER.md 2>/dev/null || true
+fi
+
 echo "=== Фаза 3 завершена ==="
 echo "Проверьте openclaw.json и CLIProxyAPI/модель."
