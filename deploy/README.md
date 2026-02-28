@@ -75,7 +75,22 @@ chmod +x ~/phase3-config.sh
 ~/phase3-config.sh
 ```
 
-Профиль пользователя (чтобы бот «знал» часовой пояс и базовый контекст) лежит в репо: `core/user-profile.md`. Скрипт phase3 при наличии папки `~/.openclaw/workspace` создаёт симлинк `~/.openclaw/workspace/USER.md` → `~/cerebro-memory/core/user-profile.md`. Если phase3 уже выполнялся до появления user-profile, один раз вручную на VPS:
+**Файлы workspace из репо (SOUL, USER, AGENTS):**
+
+| Файл в workspace | Репо | Назначение |
+|------------------|------|------------|
+| SOUL.md | `core/manifest.md` | Персона, границы, время, календарь, вывод (короткий SOUL). |
+| USER.md | `core/user-profile.md` | Профиль пользователя, тон, приоритеты. |
+| AGENTS.md | `core/agents.md` | Операционные инструкции: Chief of Staff, память, советники, Decision Framework, протоколы. |
+
+Профиль пользователя (чтобы бот «знал» часовой пояс и базовый контекст) лежит в репо: `core/user-profile.md`. Скрипт phase3 при наличии папки `~/.openclaw/workspace` создаёт симлинк `~/.openclaw/workspace/USER.md` → `~/cerebro-memory/core/user-profile.md`. **После рефактора** для подключения AGENTS на VPS один раз выполнить:
+
+```bash
+ln -sf ~/cerebro-memory/core/agents.md ~/.openclaw/workspace/AGENTS.md
+systemctl --user restart openclaw-gateway
+```
+
+Если phase3 уже выполнялся до появления user-profile, симлинк USER вручную:
 
 ```bash
 ln -sf ~/cerebro-memory/core/user-profile.md ~/.openclaw/workspace/USER.md
