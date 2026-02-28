@@ -240,21 +240,68 @@ crontab -e
 
 ## Запуск команд на VPS с локальной машины
 
-Чтобы агент или ты мог запускать команды на VPS без ввода пароля и без хранения ключей в репо:
+Чтобы запускать команды на VPS без ввода пароля (и чтобы агент мог вызывать `run-on-vps.sh`), один раз настрой вход по SSH-ключу.
 
-1. **Настрой SSH по ключу** один раз: ключ в `~/.ssh/`, добавь его на VPS (`ssh-copy-id cerebro@89.167.96.75`). Либо задай Host в `~/.ssh/config`, например:
-   ```
-   Host cerebro-vps
-     HostName 89.167.96.75
-     User cerebro
-     IdentityFile ~/.ssh/твой_ключ
-   ```
-2. **Запуск одной команды:** из корня репо:
-   ```bash
-   ./deploy/run-on-vps.sh "journalctl --user -u openclaw-gateway -n 100 --no-pager"
-   ```
-   Или с другим хостом/пользователем: `VPS_HOST=1.2.3.4 VPS_USER=deploy ./deploy/run-on-vps.sh "команда"`.
-3. Ключи и пароли в репо не класть; при необходимости переменные `VPS_HOST`/`VPS_USER` держать в `deploy/.env` (файл в .cursorignore, агент его не читает).
+### Настройка SSH-ключа (пошагово)
+
+**Шаг 1. Проверить или создать ключ** (на своей машине, не на VPS)
+
+```bash
+ls -la ~/.ssh/id_ed25519.pub ~/.ssh/id_rsa.pub 2>/dev/null || true
+```
+
+- Если один из файлов есть — ключ уже есть, переходи к шагу 2.
+- Если нет — создать ключ (парольную фразу можно оставить пустой для автоматизации):
+  ```bash
+  ssh-keygen -t ed25519 -C "cerebro-vps" -f ~/.ssh/id_ed25519_cerebro -N ""
+  ```
+  Публичный ключ будет в `~/.ssh/id_ed25519_cerebro.pub`.
+
+**Шаг 2. Скопировать ключ на VPS**
+
+Подставь свой IP, если не 89.167.96.75, и пользователя (обычно `cerebro`):
+
+```bash
+ssh-copy-id -i ~/.ssh/id_ed25519_cerebro.pub cerebro@89.167.96.75
+```
+
+(Если используешь стандартный ключ `id_ed25519` или `id_rsa`, можно просто: `ssh-copy-id cerebro@89.167.96.75`.)
+
+Один раз введи пароль пользователя `cerebro` — дальше вход будет по ключу.
+
+**Шаг 3. Проверить вход без пароля**
+
+```bash
+ssh cerebro@89.167.96.75 "echo OK"
+```
+
+Должно вывести `OK` без запроса пароля.
+
+**Шаг 4. (По желанию) Указать свой ключ в SSH config**
+
+Если создавал отдельный ключ (например `id_ed25519_cerebro`), добавь в `~/.ssh/config`:
+
+```
+Host cerebro-vps
+  HostName 89.167.96.75
+  User cerebro
+  IdentityFile ~/.ssh/id_ed25519_cerebro
+```
+
+Тогда в скрипте можно использовать `VPS_HOST=cerebro-vps` (или поменять дефолт в `run-on-vps.sh` на `cerebro-vps`).
+
+**Шаг 5. Запуск команд через скрипт**
+
+Из корня репо cerebro-memory:
+
+```bash
+./deploy/run-on-vps.sh "journalctl --user -u openclaw-gateway -n 100 --no-pager"
+./deploy/run-on-vps.sh "cd ~/cerebro-memory && git pull && systemctl --user restart openclaw-gateway"
+```
+
+Если ключ не стандартный (`id_ed25519`/`id_rsa`), задай его через config (шаг 4) или переменную: `GIT_SSH_COMMAND='ssh -i ~/.ssh/id_ed25519_cerebro' ./deploy/run-on-vps.sh "команда"` (или настрой Host в config и `VPS_HOST=cerebro-vps`).
+
+Ключи и пароли в репо не хранить. Переменные `VPS_HOST`/`VPS_USER` при необходимости держать в `deploy/.env` (добавь `deploy/.env` в `.cursorignore`, чтобы агент не читал файл).
 
 ---
 
