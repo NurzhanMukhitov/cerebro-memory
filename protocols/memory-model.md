@@ -11,6 +11,7 @@ Layer A — Working Notes (auto):
 	•	Temporary hypotheses
 	•	Draft configurations
 	•	Experimental setups
+	•	Operational notes may live in the `working-notes/` folder or in session context.
 
 Layer B — Strategic Memory (confirmation required):
 	•	Goals

@@ -114,6 +114,50 @@ chmod +x ~/phase7-monitor.sh
 ~/phase7-monitor.sh
 ```
 
+## Обновление cerebro-memory на VPS
+
+После изменений в репозитории (манифест, профиль, ledger) на VPS нужно подтянуть обновления.
+
+### Ручной запуск
+
+Под пользователем `cerebro` на VPS:
+
+```bash
+cd ~/cerebro-memory
+git pull
+# при необходимости перезапустить gateway:
+systemctl --user restart openclaw-gateway
+```
+
+Либо выполнить скрипт (если он скопирован на VPS):
+
+```bash
+chmod +x ~/cerebro-memory/deploy/update-memory.sh
+~/cerebro-memory/deploy/update-memory.sh
+```
+
+Скрипт пишет лог в `~/cerebro-memory.update.log`. Чтобы после каждого pull перезапускался gateway, раскомментируйте блок с `systemctl --user restart openclaw-gateway` в `deploy/update-memory.sh`.
+
+### По расписанию (cron)
+
+Чтобы репо обновлялось автоматически, на VPS под пользователем `cerebro` добавьте задание cron, например раз в час:
+
+```bash
+crontab -e
+# добавить строку (подставьте путь к репо при необходимости):
+0 * * * * /home/cerebro/cerebro-memory/deploy/update-memory.sh
+```
+
+Либо раз в день в заданное время:
+
+```bash
+0 6 * * * /home/cerebro/cerebro-memory/deploy/update-memory.sh
+```
+
+Установка cron выполняется вручную на VPS; скрипт должен быть исполняемым (`chmod +x .../update-memory.sh`).
+
+---
+
 ## Файлы
 
 | Файл | Описание |
@@ -125,6 +169,9 @@ chmod +x ~/phase7-monitor.sh
 | phase5-whisper.sh | faster-whisper или API |
 | phase6-systemd.sh | Автозапуск |
 | phase7-monitor.sh | Мониторинг RAM |
+| update-memory.sh | Обновление репо (git pull), ручной или по cron |
+| setup-sandbox.sh | Подготовка песочницы: workspace-sandbox, симлинки, sandbox.env, user unit |
+| openclaw-gateway-sandbox.service | Шаблон systemd user unit для второго gateway (песочница) |
 | copy-from-local.sh | Копирование ~/.openclaw с локальной машины |
 
 ---
@@ -164,31 +211,54 @@ chmod +x ~/phase7-monitor.sh
 
 Второй бот нужен, чтобы тестировать новые skills без риска для прод‑Cerebro. Второй репозиторий на Git не нужен.
 
-### Что нужно
+**Токен второго бота вводи только на VPS в файл `~/.openclaw/sandbox.env`. В чат и в репозиторий не вставляй.**
 
-1. **Второй Telegram-бот**
+### Пошаговая настройка (со скриптом)
+
+1. **Создать второго бота**
    - В Telegram: [@BotFather](https://t.me/BotFather) → `/newbot` → создать бота (например, CerebroSandboxBot).
-   - Получить токен и сохранить его (он понадобится для конфига песочницы).
+   - Сохранить токен — он понадобится на шаге 3 (только на VPS, не в репо).
 
-2. **Второй workspace на том же VPS**
-   - Отдельная папка под песочницу, например:
+2. **На VPS под пользователем cerebro выполнить скрипт**
+   - Сначала подтянуть репо: `cd ~/cerebro-memory && git pull`
+   - Запустить подготовку песочницы:
      ```bash
-     mkdir -p ~/.openclaw/workspace-sandbox
+     chmod +x ~/cerebro-memory/deploy/setup-sandbox.sh
+     ~/cerebro-memory/deploy/setup-sandbox.sh
      ```
-   - В неё можно скопировать минимальный набор из прод‑workspace (SOUL.md, BOOTSTRAP.md, IDENTITY.md и т.д.) или сделать симлинки на тот же `~/cerebro-memory/core/manifest.md`, если хочешь тот же манифест, но другие skills.
-   - В песочницу устанавливаются тестовые skills (`clawhub install ...` из каталога workspace-sandbox или с указанием workdir).
+   - Скрипт создаёт `~/.openclaw/workspace-sandbox`, симлинки на манифест и профиль из cerebro-memory, файл `~/.openclaw/sandbox.env` с заглушкой для токена и копирует systemd user unit для песочницы.
 
-3. **Второй процесс gateway**
-   - Нужно запускать второй экземпляр OpenClaw gateway с:
-     - другим workspace (например `~/.openclaw/workspace-sandbox`);
-     - другим Telegram-токеном (в конфиге или переменной окружения для этого процесса).
-   - Как именно задаётся workspace и токен, смотри в текущей конфигурации OpenClaw (например `openclaw.json`, переменные окружения или флаги `openclaw gateway start`). Обычно один gateway = один конфиг/один workspace.
-   - Варианты:
-     - **Ручной запуск:** в отдельном tmux/screen сессии запустить gateway с конфигом для песочницы (отдельный `openclaw.json` в workspace-sandbox или через `--config`/`OPENCLAW_*`).
-     - **Второй user unit:** скопировать `openclaw-gateway.service` в `openclaw-gateway-sandbox.service`, в нём поменять путь к workspace и конфиг/токен, запускать вторым юнитом.
+3. **Подставить токен второго бота**
+   - На VPS: `nano ~/.openclaw/sandbox.env`
+   - Заменить `ПОДСТАВЬ_ТОКЕН_СЮДА` на реальный токен из BotFather. Сохранить.
+   - Файл `sandbox.env` не коммитится в git и должен оставаться только на VPS.
 
-4. **Pairing в Telegram**
-   - В новом боте выполнить команду pairing (как при первой настройке прод‑бота) и привязать свой Telegram user id, чтобы только ты мог с ним общаться.
+4. **Запустить песочницу**
+   ```bash
+   systemctl --user start openclaw-gateway-sandbox
+   ```
+   Опционально включить автозапуск при входе пользователя:
+   ```bash
+   systemctl --user enable openclaw-gateway-sandbox
+   ```
+
+5. **Pairing в Telegram**
+   - Открыть второго бота в Telegram и выполнить pairing (как для прод‑бота), привязать свой user id.
+
+6. **Skills в песочницу**
+   - Ставить отдельно из каталога песочницы: `cd ~/.openclaw/workspace-sandbox && clawhub install <skill>`
+   - Перезапуск песочницы после установки skill: `systemctl --user restart openclaw-gateway-sandbox`
+
+### Порты и конфликты
+
+Если прод уже запущен как user unit `openclaw-gateway.service`, оба процесса (прод и песочница) работают на одной машине. OpenClaw по умолчанию может слушать один и тот же порт (например 18789). Если второй gateway при старте выдаёт ошибку «address already in use», задай для песочницы другой порт — через конфиг OpenClaw в `workspace-sandbox` или переменную окружения, если приложение это поддерживает. Конфликта по Telegram не будет: у каждого бота свой токен и свой поток getUpdates.
+
+### Что нужно (без скрипта)
+
+- Второй workspace: `~/.openclaw/workspace-sandbox` с симлинками SOUL.md, BOOTSTRAP.md, USER.md на `~/cerebro-memory/core/`.
+- Токен второго бота — в конфиге или в `EnvironmentFile` (например `~/.openclaw/sandbox.env` с `TELEGRAM_BOT_TOKEN=...`).
+- Второй процесс gateway с `WorkingDirectory=~/.openclaw/workspace-sandbox` и этим токеном (второй user unit или ручной запуск в tmux/screen).
+- Альтернатива конфигу: если OpenClaw читает `openclaw.json` из текущей директории, скопировать `~/.openclaw/workspace/openclaw.json` в `workspace-sandbox/` и заменить в нём только telegram token для песочницы.
 
 ### Git
 
