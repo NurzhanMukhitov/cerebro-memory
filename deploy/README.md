@@ -160,7 +160,7 @@ systemctl --user restart openclaw-gateway
 
 Проверка в Telegram: «Что у меня на неделе?», «Встречи на завтра», «Расписание на понедельник».
 
-**Если бот пишет «календарь не подключён» / «нет доступа»:** сразу после такого ответа на VPS выполнить `journalctl --user -u openclaw-gateway -n 100 --no-pager` и проверить: (1) вызывался ли инструмент календаря (поиск по khal, caldav, calendar, tool); (2) есть ли ошибка (например `khal: command not found` — тогда добавить PATH в user unit: `Environment=PATH=/usr/bin:/usr/local/bin:...` в `~/.config/systemd/user/openclaw-gateway.service` и `systemctl --user daemon-reload`).
+**Если бот пишет «календарь не подключён» / «нет доступа»:** (1) Логи gateway: `journalctl --user -u openclaw-gateway -n 100 --no-pager`. (2) Детальный лог (вызовы tool): `tail -200 /tmp/openclaw/openclaw-$(date +%Y-%m-%d).log` — искать `embedded run tool` и имя tool (если нет вызова caldav/khal/calendar — модель не вызывает инструмент; в манифесте явно указано вызывать инструмент с именем/описанием caldav_calendar, khal, calendar). (3) При ошибке `khal: command not found` — добавить PATH в user unit и сделать `systemctl --user daemon-reload`.
 
 ### 9. Фаза 6: Systemd
 
