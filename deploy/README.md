@@ -97,6 +97,30 @@ ln -sf ~/cerebro-memory/core/user-profile.md ~/.openclaw/workspace/USER.md
 systemctl --user restart openclaw-gateway
 ```
 
+#### Как проверить, что SOUL и AGENTS подключены
+
+**1. На VPS — что файлы на месте и gateway жив:**
+
+```bash
+# Симлинки и размеры
+ls -la ~/.openclaw/workspace/SOUL.md ~/.openclaw/workspace/USER.md ~/.openclaw/workspace/AGENTS.md 2>/dev/null
+
+# Сервис и последние логи
+systemctl --user is-active openclaw-gateway
+journalctl --user -u openclaw-gateway -n 30 --no-pager
+```
+
+SOUL чаще всего вешает в корне: `~/.openclaw/SOUL.md` → `~/cerebro-memory/core/manifest.md`. Если в workspace только USER и AGENTS — нормально; SOUL может быть прописан в конфиге отдельно.
+
+**2. В боте — что правила из SOUL и AGENTS работают:**
+
+- **SOUL (время, календарь):** напиши «Который час?» или «Что на этой неделе?» — бот должен вызвать `session_status` / календарный tool и ответить по факту, без «нет доступа» и без просьбы скрина.
+- **AGENTS (советники, формат):** спроси «Как сегодня день?» или «План на день» — ответ должен быть в стиле Chief of Staff (структура дня, приоритеты). На ответ с рекомендацией в конце должна быть строка вида `Intent: … (confidence: …)`.
+
+**3. Логи — попал ли контент в контекст:**
+
+В логах OpenClaw иногда видно, какие файлы подгружаются в bootstrap. Детальный лог (если есть): `tail -n 200 /tmp/openclaw/openclaw-*.log` — искать по "SOUL", "AGENTS", "bootstrap" или по первому фрагменту из manifest/agents. Если в конфиге OpenClaw явно перечислены файлы workspace (SOUL.md, USER.md, AGENTS.md и т.д.) — убедись, что там есть AGENTS.md или что подхватывается весь workspace.
+
 ### 7. Фаза 4: Headless Chrome
 
 ```bash
