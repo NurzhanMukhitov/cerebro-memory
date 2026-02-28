@@ -431,6 +431,7 @@ Host cerebro-vps
 | 2 | **summarize** | `cd ~/.openclaw/workspace && clawhub install summarize` (или `npx clawhub search summarize` → выбрать slug). `systemctl --user restart openclaw-gateway`. | Отправить ссылку: «Кратко перескажи что там» / «Сделай саммари». |
 | 3 | **browser / Headless Chrome** | Сначала зависимости (если ещё не ставили): выполнить `~/cerebro-memory/deploy/phase4-chrome.sh`. Затем `npx clawhub search "browser"` или `"chrome"` → установить выбранный skill в workspace. Перезапуск gateway. | «Найди в интернете [факт]» или «Открой [URL] и скажи о чём страница». |
 | 4 | **caldav-calendar** | Сначала vdirsyncer + khal (CalDAV, напр. Larnilane/Mail.ru). Затем `cd ~/.openclaw/workspace && npx clawhub install caldav-calendar`. Перезапуск gateway. | «Что на неделе?», «Встречи на завтра», «Расписание на понедельник». |
+| 5 | **remind** | На VPS (с nvm: `export NVM_DIR=$HOME/.nvm; [ -s "\$NVM_DIR/nvm.sh" ] && . "\$NVM_DIR/nvm.sh"`): `cd ~/.openclaw/workspace && npx clawhub install remind`. Затем `systemctl --user restart openclaw-gateway`. Навык для напоминаний по времени и расписанию. | «Напомни в 18:00», «Напомни позвонить завтра в 10:00». |
 
 Логи при проблемах: `journalctl --user -u openclaw-gateway -n 50 --no-pager`.
 
