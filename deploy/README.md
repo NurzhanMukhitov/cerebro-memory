@@ -433,6 +433,8 @@ Host cerebro-vps
 | 4 | **caldav-calendar** | Сначала vdirsyncer + khal (CalDAV, напр. Larnilane/Mail.ru). Затем `cd ~/.openclaw/workspace && npx clawhub install caldav-calendar`. Перезапуск gateway. | «Что на неделе?», «Встречи на завтра», «Расписание на понедельник». |
 | 5 | **remind** | На VPS (с nvm: `export NVM_DIR=$HOME/.nvm; [ -s "\$NVM_DIR/nvm.sh" ] && . "\$NVM_DIR/nvm.sh"`): `cd ~/.openclaw/workspace && npx clawhub install remind`. Затем `systemctl --user restart openclaw-gateway`. Навык для напоминаний по времени и расписанию. | «Напомни в 18:00», «Напомни позвонить завтра в 10:00». |
 
+**Убрать дубликат «Готово: отправил сообщение в Telegram…» после напоминания:** выполнить на VPS `~/cerebro-memory/deploy/subagent-announce-skip.sh` (нужен `jq`). Скрипт добавляет в `~/.openclaw/openclaw.json` опцию `agents.defaults.subagents.announce = "skip"`, чтобы результат subagent не слался в чат отдельным сообщением. Требуется OpenClaw с поддержкой этой опции (см. [PR #13303](https://github.com/openclaw/openclaw/pull/13303)); после выполнения — `systemctl --user restart openclaw-gateway`.
+
 Логи при проблемах: `journalctl --user -u openclaw-gateway -n 50 --no-pager`.
 
 ### Правило
