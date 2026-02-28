@@ -125,6 +125,7 @@ systemctl --user restart openclaw-gateway
   `journalctl --user -u openclaw-gateway -n 50 --no-pager | grep -E "rate limit|sendMessage ok|bootstrap file AGENTS"`  
   и по времени между bootstrap и sendMessage прикинуть задержку.
 - **Ответ не пришёл, в логах «compaction … Rate limit … TPM»:** агент уже сформировал ответ, но шлюз перед отправкой делает суммаризацию контекста (compaction) тем же API — упирается в лимит TPM, и ответ может не уйти. Решение: подождать 1–2 минуты (сброс TPM) и написать снова; не слать подряд много сообщений. **Не ставить** `compaction.mode = "off"` — в этой версии OpenClaw значение недопустимо, шлюз падает при старте (Config invalid).
+- **Бот «печатает», но ответы не приходят:** в детальном логе ищи `embedded run agent end: ... isError=false` без последующего `sendMessage ok`. Если сразу после этого идёт `embedded run compaction start` и `compaction retry` — ответ готов, но compaction упирается в лимит (TPM/RPM) и сообщение в Telegram не отправляется. Что делать: не слать подряд несколько запросов (фото + текст + текст); подождать 1–2 мин после серии; при частых сбоях — повысить tier OpenAI или реже комбинировать тяжёлые запросы (фото + календарь + погода подряд).
 
 #### Как проверить, что SOUL и AGENTS подключены
 
@@ -499,6 +500,19 @@ Host cerebro-vps
 | 3 | **browser / Headless Chrome** | Сначала зависимости (если ещё не ставили): выполнить `~/cerebro-memory/deploy/phase4-chrome.sh`. Затем `npx clawhub search "browser"` или `"chrome"` → установить выбранный skill в workspace. Перезапуск gateway. | «Найди в интернете [факт]» или «Открой [URL] и скажи о чём страница». |
 | 4 | **caldav-calendar** | Сначала vdirsyncer + khal (CalDAV, напр. Larnilane/Mail.ru). Затем `cd ~/.openclaw/workspace && npx clawhub install caldav-calendar`. Перезапуск gateway. | «Что на неделе?», «Встречи на завтра», «Расписание на понедельник». |
 | 5 | **remind** | На VPS (с nvm: `export NVM_DIR=$HOME/.nvm; [ -s "\$NVM_DIR/nvm.sh" ] && . "\$NVM_DIR/nvm.sh"`): `cd ~/.openclaw/workspace && npx clawhub install remind`. Затем `systemctl --user restart openclaw-gateway`. Навык для напоминаний по времени и расписанию. | «Напомни в 18:00», «Напомни позвонить завтра в 10:00». |
+| 6 | **rss-reader** | `cd ~/.openclaw/workspace && npx clawhub install rss-reader --force` (skill помечен suspicious — установка с --force). Перезапуск gateway. Ленты настраиваются отдельно (см. ниже). | «Какие новости?», «Что в лентах?». |
+
+**Настройка rss-reader (ленты новостей):** фиды хранятся в `~/.openclaw/workspace/skills/rss-reader/data/feeds.json`. Добавить ленту на VPS (PATH с node обязателен):
+
+```bash
+export PATH="$HOME/.nvm/versions/node/v22.22.0/bin:$PATH"
+cd ~/.openclaw/workspace/skills/rss-reader
+node scripts/rss.js add "https://example.com/feed.xml" --category news
+node scripts/rss.js list
+node scripts/rss.js check
+```
+
+Примеры лент из SKILL.md: Hacker News `https://news.ycombinator.com/rss`, TechCrunch `https://techcrunch.com/feed/`, The Verge `https://www.theverge.com/rss/index.xml`. Удалить: `node scripts/rss.js remove "URL"`. В `feeds.json` можно править вручную: `name`, `category`, `enabled`, в `settings` — `maxItemsPerFeed`, `maxAgeDays`, `summaryEnabled`.
 
 **Убрать дубликат «Готово: отправил сообщение в Telegram…» после напоминания:** выполнить на VPS `~/cerebro-memory/deploy/subagent-announce-skip.sh` (нужен `jq`). Скрипт добавляет в `~/.openclaw/openclaw.json` опцию `agents.defaults.subagents.announce = "skip"`, чтобы результат subagent не слался в чат отдельным сообщением. Требуется OpenClaw с поддержкой этой опции (см. [PR #13303](https://github.com/openclaw/openclaw/pull/13303)); после выполнения — `systemctl --user restart openclaw-gateway`.
 
