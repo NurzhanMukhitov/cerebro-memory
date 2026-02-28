@@ -144,6 +144,22 @@ systemctl --user restart openclaw-gateway
 
 Альтернатива (локально, много RAM): faster-whisper или tg-voice-whisper — риск OOM на малых VPS.
 
+### 8.1 Календарь (CalDAV / khal)
+
+Чтобы бот видел календарь и мог отвечать на вопросы про встречи и расписание, нужен skill **caldav-calendar** (он даёт агенту инструменты для вызова `khal`).
+
+**Предварительно:** на VPS должны быть настроены vdirsyncer и khal (CalDAV, например Larnilane/Mail.ru: Рабочий, Личный и др.). Коллекции синхронизируются в локальные каталоги; перед установкой skill убедись, что `vdirsyncer sync` и `khal list` работают под пользователем `cerebro`.
+
+Установка skill:
+
+```bash
+cd ~/.openclaw/workspace
+npx clawhub install caldav-calendar
+systemctl --user restart openclaw-gateway
+```
+
+Проверка в Telegram: «Что у меня на неделе?», «Встречи на завтра», «Расписание на понедельник». Если бот по-прежнему пишет, что не видит календарь — проверить логи: `journalctl --user -u openclaw-gateway -n 80 --no-pager` (skill загружен, нет ли ошибок при вызове khal).
+
 ### 9. Фаза 6: Systemd
 
 ```bash
@@ -253,6 +269,7 @@ crontab -e
 | 1 | **weather** | Если ещё не установлен: `cd ~/.openclaw/workspace && clawhub install weather`. Затем `systemctl --user restart openclaw-gateway`. | «Какая погода в Барселоне?» |
 | 2 | **summarize** | `cd ~/.openclaw/workspace && clawhub install summarize` (или `npx clawhub search summarize` → выбрать slug). `systemctl --user restart openclaw-gateway`. | Отправить ссылку: «Кратко перескажи что там» / «Сделай саммари». |
 | 3 | **browser / Headless Chrome** | Сначала зависимости (если ещё не ставили): выполнить `~/cerebro-memory/deploy/phase4-chrome.sh`. Затем `npx clawhub search "browser"` или `"chrome"` → установить выбранный skill в workspace. Перезапуск gateway. | «Найди в интернете [факт]» или «Открой [URL] и скажи о чём страница». |
+| 4 | **caldav-calendar** | Сначала vdirsyncer + khal (CalDAV, напр. Larnilane/Mail.ru). Затем `cd ~/.openclaw/workspace && npx clawhub install caldav-calendar`. Перезапуск gateway. | «Что на неделе?», «Встречи на завтра», «Расписание на понедельник». |
 
 Логи при проблемах: `journalctl --user -u openclaw-gateway -n 50 --no-pager`.
 
