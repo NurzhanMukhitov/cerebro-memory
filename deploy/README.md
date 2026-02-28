@@ -234,6 +234,27 @@ crontab -e
 | update-memory.sh | Обновление репо (git pull), ручной или по cron |
 | add-audio-transcription.sh | Добавление tools.media.audio в openclaw.json (транскрипция голоса) |
 | copy-from-local.sh | Копирование ~/.openclaw с локальной машины |
+| run-on-vps.sh | Запуск команды на VPS по SSH (ключ в ~/.ssh/, не в репо) |
+
+---
+
+## Запуск команд на VPS с локальной машины
+
+Чтобы агент или ты мог запускать команды на VPS без ввода пароля и без хранения ключей в репо:
+
+1. **Настрой SSH по ключу** один раз: ключ в `~/.ssh/`, добавь его на VPS (`ssh-copy-id cerebro@89.167.96.75`). Либо задай Host в `~/.ssh/config`, например:
+   ```
+   Host cerebro-vps
+     HostName 89.167.96.75
+     User cerebro
+     IdentityFile ~/.ssh/твой_ключ
+   ```
+2. **Запуск одной команды:** из корня репо:
+   ```bash
+   ./deploy/run-on-vps.sh "journalctl --user -u openclaw-gateway -n 100 --no-pager"
+   ```
+   Или с другим хостом/пользователем: `VPS_HOST=1.2.3.4 VPS_USER=deploy ./deploy/run-on-vps.sh "команда"`.
+3. Ключи и пароли в репо не класть; при необходимости переменные `VPS_HOST`/`VPS_USER` держать в `deploy/.env` (файл в .cursorignore, агент его не читает).
 
 ---
 
