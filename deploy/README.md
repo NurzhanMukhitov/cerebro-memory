@@ -91,14 +91,58 @@ chmod +x ~/phase4-chrome.sh
 
 Установить skill через бота: «Установи skill Headless Chrome из Claw Hub».
 
-### 8. Фаза 5: Whisper
+### 8. Фаза 5: Whisper (голос → текст)
 
+**Рекомендуется: openai-whisper-api** (облако, без нагрузки на RAM, платно). [ClawHub: openai-whisper-api](https://clawhub.ai/steipete/openai-whisper-api)
+
+На VPS:
 ```bash
-chmod +x ~/phase5-whisper.sh
-~/phase5-whisper.sh
+cd ~/.openclaw/workspace
+npx clawhub install openai-whisper-api
 ```
 
-Через бота: «Установи skill faster-whisper» или настроить Whisper API.
+Задать API-ключ OpenAI:
+- **Вариант A:** в конфиге OpenClaw (если поддерживается), например в `~/.openclaw/workspace/openclaw.json` в секции skills для `openai-whisper-api` поле `apiKey`.
+- **Вариант B:** переменная окружения для user-сервиса: в юните systemd добавить `Environment=OPENAI_API_KEY=sk-...` или положить ключ в `~/.openclaw/env` и подключать через `EnvironmentFile=`.
+
+После установки и настройки ключа: `systemctl --user restart openclaw-gateway`.
+
+Скилл предоставляет скрипт `scripts/transcribe.sh` для транскрипции файла. **Автоматический ответ на голос в Telegram** включается не скиллом, а встроенной обработкой OpenClaw (см. ниже).
+
+#### Включение автоматической транскрипции голоса в Telegram
+
+У OpenClaw есть встроенная поддержка голосовых: при получении голосового сообщения gateway сам вызывает транскрипцию (OpenAI API или локальный Whisper) и подставляет текст в диалог. Нужно добавить в конфиг gateway секцию `tools.media.audio`.
+
+**Где конфиг:** обычно `~/.openclaw/openclaw.json` или `~/.openclaw/workspace/openclaw.json`. На VPS проверь: `ls -la ~/.openclaw/openclaw.json ~/.openclaw/workspace/openclaw.json 2>/dev/null`.
+
+**Скрипт (добавит блок сам):** на VPS выполнить `~/cerebro-memory/deploy/add-audio-transcription.sh` (нужен `jq`: `sudo apt install -y jq`). Затем `systemctl --user restart openclaw-gateway`.
+
+**Что добавить:** в корень JSON (рядом с `agent`, `channels` и т.д.) секцию `tools`:
+
+```json
+"tools": {
+  "media": {
+    "audio": {
+      "enabled": true,
+      "maxBytes": 20971520,
+      "timeoutSeconds": 120,
+      "models": [
+        { "provider": "openai", "model": "gpt-4o-mini-transcribe" }
+      ]
+    }
+  }
+}
+```
+
+Если в конфиге уже есть `tools` (например `tools.exec`), добавь внутрь него только `media.audio`, не затирая остальное. Ключ OpenAI gateway возьмёт из окружения (`OPENAI_API_KEY` в systemd уже задан через `EnvironmentFile=~/.openclaw/openai.env`).
+
+**После правок:**
+```bash
+systemctl --user restart openclaw-gateway
+```
+Проверка: отправить боту голосовое в Telegram — бот должен распознать и ответить по смыслу. Документация: [OpenClaw Audio and Voice Notes](https://docs.openclaw.ai/nodes/audio).
+
+Альтернатива (локально, много RAM): faster-whisper или tg-voice-whisper — риск OOM на малых VPS.
 
 ### 9. Фаза 6: Systemd
 
@@ -170,15 +214,14 @@ crontab -e
 | phase6-systemd.sh | Автозапуск |
 | phase7-monitor.sh | Мониторинг RAM |
 | update-memory.sh | Обновление репо (git pull), ручной или по cron |
-| setup-sandbox.sh | Подготовка песочницы: workspace-sandbox, симлинки, sandbox.env, user unit |
-| openclaw-gateway-sandbox.service | Шаблон systemd user unit для второго gateway (песочница) |
+| add-audio-transcription.sh | Добавление tools.media.audio в openclaw.json (транскрипция голоса) |
 | copy-from-local.sh | Копирование ~/.openclaw с локальной машины |
 
 ---
 
-## Подключение skills (Phase 1)
+## Подключение skills
 
-Правила и матрица советник → skills описаны в `protocols/skills-integration.md`. Новые skills сначала проверяются в песочнице (второй бот), затем по одному включаются в прод.
+Правила и матрица советник → skills описаны в `protocols/skills-integration.md`. Skills добавляем **по одному в прод**: сначала read-only (погода, суммаризаторы, браузер на чтение), затем при необходимости — с доступом к данным и write только после явного описания в протоколе.
 
 ### Команды на VPS (пользователь cerebro)
 
@@ -201,66 +244,24 @@ crontab -e
   systemctl --user restart openclaw-gateway
   ```
 
+### Skills приоритета 1 (read-only)
+
+Ставим по одному, после каждого — перезапуск gateway и проверка в Telegram.
+
+| Шаг | Skill | Действия на VPS | Проверка в Telegram |
+|-----|--------|------------------|----------------------|
+| 1 | **weather** | Если ещё не установлен: `cd ~/.openclaw/workspace && clawhub install weather`. Затем `systemctl --user restart openclaw-gateway`. | «Какая погода в Барселоне?» |
+| 2 | **summarize** | `cd ~/.openclaw/workspace && clawhub install summarize` (или `npx clawhub search summarize` → выбрать slug). `systemctl --user restart openclaw-gateway`. | Отправить ссылку: «Кратко перескажи что там» / «Сделай саммари». |
+| 3 | **browser / Headless Chrome** | Сначала зависимости (если ещё не ставили): выполнить `~/cerebro-memory/deploy/phase4-chrome.sh`. Затем `npx clawhub search "browser"` или `"chrome"` → установить выбранный skill в workspace. Перезапуск gateway. | «Найди в интернете [факт]» или «Открой [URL] и скажи о чём страница». |
+
+Логи при проблемах: `journalctl --user -u openclaw-gateway -n 50 --no-pager`.
+
 ### Правило
 
-Не добавлять в прод‑Cerebro навыки с write-операциями (почта, календарь, код, доски) до проверки в песочнице и до явного описания в протоколе (Phase 2/3).
+Сначала — только read-only skills. Навыки с write-операциями (почта, календарь, код, доски) добавлять только после явного описания в протоколе и с пониманием рисков.
 
 ---
 
-## Песочница: второй бот (sandbox)
+## Второй бот (песочница) — опционально
 
-Второй бот нужен, чтобы тестировать новые skills без риска для прод‑Cerebro. Второй репозиторий на Git не нужен.
-
-**Токен второго бота вводи только на VPS в файл `~/.openclaw/sandbox.env`. В чат и в репозиторий не вставляй.**
-
-### Пошаговая настройка (со скриптом)
-
-1. **Создать второго бота**
-   - В Telegram: [@BotFather](https://t.me/BotFather) → `/newbot` → создать бота (например, CerebroSandboxBot).
-   - Сохранить токен — он понадобится на шаге 3 (только на VPS, не в репо).
-
-2. **На VPS под пользователем cerebro выполнить скрипт**
-   - Сначала подтянуть репо: `cd ~/cerebro-memory && git pull`
-   - Запустить подготовку песочницы:
-     ```bash
-     chmod +x ~/cerebro-memory/deploy/setup-sandbox.sh
-     ~/cerebro-memory/deploy/setup-sandbox.sh
-     ```
-   - Скрипт создаёт `~/.openclaw/workspace-sandbox`, симлинки на манифест и профиль из cerebro-memory, файл `~/.openclaw/sandbox.env` с заглушкой для токена и копирует systemd user unit для песочницы.
-
-3. **Подставить токен второго бота**
-   - На VPS: `nano ~/.openclaw/sandbox.env`
-   - Заменить `ПОДСТАВЬ_ТОКЕН_СЮДА` на реальный токен из BotFather. Сохранить.
-   - Файл `sandbox.env` не коммитится в git и должен оставаться только на VPS.
-
-4. **Запустить песочницу**
-   ```bash
-   systemctl --user start openclaw-gateway-sandbox
-   ```
-   Опционально включить автозапуск при входе пользователя:
-   ```bash
-   systemctl --user enable openclaw-gateway-sandbox
-   ```
-
-5. **Pairing в Telegram**
-   - Открыть второго бота в Telegram и выполнить pairing (как для прод‑бота), привязать свой user id.
-
-6. **Skills в песочницу**
-   - Ставить отдельно из каталога песочницы: `cd ~/.openclaw/workspace-sandbox && clawhub install <skill>`
-   - Перезапуск песочницы после установки skill: `systemctl --user restart openclaw-gateway-sandbox`
-
-### Порты и конфликты
-
-Если прод уже запущен как user unit `openclaw-gateway.service`, оба процесса (прод и песочница) работают на одной машине. OpenClaw по умолчанию может слушать один и тот же порт (например 18789). Если второй gateway при старте выдаёт ошибку «address already in use», задай для песочницы другой порт — через конфиг OpenClaw в `workspace-sandbox` или переменную окружения, если приложение это поддерживает. Конфликта по Telegram не будет: у каждого бота свой токен и свой поток getUpdates.
-
-### Что нужно (без скрипта)
-
-- Второй workspace: `~/.openclaw/workspace-sandbox` с симлинками SOUL.md, BOOTSTRAP.md, USER.md на `~/cerebro-memory/core/`.
-- Токен второго бота — в конфиге или в `EnvironmentFile` (например `~/.openclaw/sandbox.env` с `TELEGRAM_BOT_TOKEN=...`).
-- Второй процесс gateway с `WorkingDirectory=~/.openclaw/workspace-sandbox` и этим токеном (второй user unit или ручной запуск в tmux/screen).
-- Альтернатива конфигу: если OpenClaw читает `openclaw.json` из текущей директории, скопировать `~/.openclaw/workspace/openclaw.json` в `workspace-sandbox/` и заменить в нём только telegram token для песочницы.
-
-### Git
-
-- Один репозиторий `cerebro-memory` достаточен.
-- Прод и песочница могут использовать один и тот же манифест (симлинки на `~/cerebro-memory/core/manifest.md`) или копию для экспериментов. Различие — какой бот, какой workspace и какие skills установлены, а не отдельный репо.
+При необходимости тестировать skills отдельно можно поднять второго Telegram-бота и отдельный workspace (`~/.openclaw/workspace-sandbox`). На текущей установке прод и второй gateway конфликтуют (один порт / перезапуск продового сервиса), поэтому режим «по очереди» или ручной запуск в tmux. Скрипты и юнит в репо не поддерживаются в текущем потоке; skills добавляем по одному в прод (см. `protocols/skills-integration.md`).
