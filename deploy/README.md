@@ -158,7 +158,9 @@ npx clawhub install caldav-calendar
 systemctl --user restart openclaw-gateway
 ```
 
-Проверка в Telegram: «Что у меня на неделе?», «Встречи на завтра», «Расписание на понедельник». Если бот по-прежнему пишет, что не видит календарь — проверить логи: `journalctl --user -u openclaw-gateway -n 80 --no-pager` (skill загружен, нет ли ошибок при вызове khal).
+Проверка в Telegram: «Что у меня на неделе?», «Встречи на завтра», «Расписание на понедельник».
+
+**Если бот пишет «календарь не подключён» / «нет доступа»:** сразу после такого ответа на VPS выполнить `journalctl --user -u openclaw-gateway -n 100 --no-pager` и проверить: (1) вызывался ли инструмент календаря (поиск по khal, caldav, calendar, tool); (2) есть ли ошибка (например `khal: command not found` — тогда добавить PATH в user unit: `Environment=PATH=/usr/bin:/usr/local/bin:...` в `~/.config/systemd/user/openclaw-gateway.service` и `systemctl --user daemon-reload`).
 
 ### 9. Фаза 6: Systemd
 
