@@ -75,6 +75,8 @@ chmod +x ~/phase3-config.sh
 ~/phase3-config.sh
 ```
 
+**Комплексный аудит бота (все блоки, что проверять):** см. [docs/bot-audit-2026-02.md](../docs/bot-audit-2026-02.md).
+
 **Файлы workspace из репо (SOUL, USER, AGENTS, IDENTITY, TOOLS):**
 
 | Файл в workspace | Репо | Назначение |
@@ -84,6 +86,7 @@ chmod +x ~/phase3-config.sh
 | AGENTS.md | `core/agents.md` | Операционные инструкции: Chief of Staff, память, советники, Decision Framework, протоколы. |
 | IDENTITY.md | `core/identity.md` | Имя агента, эмодзи, краткое описание (опционально). |
 | TOOLS.md | `core/tools.md` | Подсказки по инструментам: когда вызывать session_status, календарь, остальные skills (опционально). |
+| BOOTSTRAP.md | **не из репо** | На VPS должен быть **минимальным** (1 строка), не симлинк на manifest. Иначе тот же контент, что и SOUL, грузится дважды и сильно тормозит ответы. |
 
 Профиль пользователя (чтобы бот «знал» часовой пояс и базовый контекст) лежит в репо: `core/user-profile.md`. Скрипт phase3 при наличии папки `~/.openclaw/workspace` создаёт симлинк `~/.openclaw/workspace/USER.md` → `~/cerebro-memory/core/user-profile.md`. **После рефактора** для подключения AGENTS на VPS один раз выполнить:
 
@@ -113,6 +116,16 @@ ln -sf ~/cerebro-memory/core/user-profile.md ~/.openclaw/workspace/USER.md
 systemctl --user restart openclaw-gateway
 ```
 
+**Оптимизация скорости ответа:** OpenClaw при каждом сообщении подгружает все bootstrap-файлы (SOUL, BOOTSTRAP, AGENTS, USER, TOOLS и т.д.). Если `BOOTSTRAP.md` был симлинком на `manifest.md` (как SOUL), один и тот же текст ~10k символов уходил в контекст дважды → лишние токены и задержка. На VPS BOOTSTRAP заменён на минимальный файл («See SOUL.md…»). Дополнительно: `AGENTS.md` ~22k обрезается до 20k (`bootstrapMaxChars`); сокращение `core/agents.md` до <20k символов ускорит и уберёт предупреждение в логах.
+
+**Диагностика тормозов по логам (VPS):**
+- **Rate limit OpenAI:** при появлении в логах `API rate limit reached. Please try again later` и нескольких подряд `embedded run agent end: isError=true` один запрос уходит в повторные попытки и может занять **60+ секунд**. Решение: реже слать запросы подряд, или перейти на `gpt-4o-mini` (меньше токенов/лимитов), или повысить tier в OpenAI.
+- **Длительность одного запроса:** в JSON-логе (`/tmp/openclaw/openclaw-*.log`) искать `lane task done` → поле `durationMs` (время от старта обработки до отправки ответа в Telegram). Без rate limit типично 8–25 с; с лимитом — 60+ с.
+- **Команда для быстрой проверки:**  
+  `journalctl --user -u openclaw-gateway -n 50 --no-pager | grep -E "rate limit|sendMessage ok|bootstrap file AGENTS"`  
+  и по времени между bootstrap и sendMessage прикинуть задержку.
+- **Ответ не пришёл, в логах «compaction … Rate limit … TPM»:** агент уже сформировал ответ, но шлюз перед отправкой делает суммаризацию контекста (compaction) тем же API — упирается в лимит TPM, и ответ может не уйти. Решение: подождать 1–2 минуты (сброс TPM) и написать снова; не слать подряд много сообщений. **Не ставить** `compaction.mode = "off"` — в этой версии OpenClaw значение недопустимо, шлюз падает при старте (Config invalid).
+
 #### Как проверить, что SOUL и AGENTS подключены
 
 **1. На VPS — что файлы на месте и gateway жив:**
@@ -130,7 +143,7 @@ SOUL чаще всего вешает в корне: `~/.openclaw/SOUL.md` → `
 
 **2. В боте — что правила из SOUL и AGENTS работают:**
 
-- **SOUL (время, календарь):** напиши «Который час?» или «Что на этой неделе?» — бот должен вызвать `session_status` / календарный tool и ответить по факту, без «нет доступа» и без просьбы скрина.
+- **SOUL (время, календарь, погода):** напиши «Который час?», «Что на этой неделе?» или «Что по погоде на завтра?» — бот должен вызвать `session_status` / календарный / weather tool и ответить по факту, без «нет доступа» и без просьбы скрина или альтернативных сайтов.
 - **AGENTS (советники, формат):** спроси «Как сегодня день?» или «План на день» — ответ должен быть в стиле Chief of Staff (структура дня, приоритеты). На ответ с рекомендацией в конце должна быть строка вида `Intent: … (confidence: …)`.
 
 **3. Логи — попал ли контент в контекст:**
@@ -199,6 +212,34 @@ systemctl --user restart openclaw-gateway
 
 Альтернатива (локально, много RAM): faster-whisper или tg-voice-whisper — риск OOM на малых VPS.
 
+#### Временное переключение бота на OpenAI API (как у транскрипции)
+
+**Откат на OAuth (одна строка на VPS):**  
+`jq '.agents.defaults.model.primary = "openai-codex/gpt-5.3-codex"' ~/.openclaw/openclaw.json > ~/.openclaw/openclaw.json.tmp && mv ~/.openclaw/openclaw.json.tmp ~/.openclaw/openclaw.json && systemctl --user restart openclaw-gateway`
+
+Сейчас основной агент может быть на `openai-codex/gpt-5.3-codex` (OAuth/подписка). Чтобы перевести бота на **OpenAI API** (оплата по использованию, тот же ключ, что и для голоса):
+
+**Как это будет работать:** шлюз продолжит работать как раньше; меняется только источник ответов: вместо Codex (ChatGPT OAuth) запросы пойдут в API OpenAI по ключу из `~/.openclaw/openai.env`. Транскрипция голоса уже использует этот ключ — ничего дополнительно настраивать не нужно. После смены модели и рестарта шлюза бот сразу начнёт отвечать через выбранную модель (например, `openai/gpt-4o`).
+
+**Возврат обратно:** да, в любой момент можно вернуть OAuth/Codex одной командой (см. ниже). Никаких потерь: OAuth-профиль на VPS остаётся, просто в конфиге снова указывается `openai-codex/gpt-5.3-codex` и делается рестарт.
+
+1. **Перевести на API и модель GPT-4o** (на VPS):
+   ```bash
+   # Сохранить текущее значение на случай отката (опционально):
+   # jq -r '.agents.defaults.model.primary' ~/.openclaw/openclaw.json
+
+   jq '.agents.defaults.model.primary = "openai/gpt-4o"' ~/.openclaw/openclaw.json > ~/.openclaw/openclaw.json.tmp && mv ~/.openclaw/openclaw.json.tmp ~/.openclaw/openclaw.json
+   systemctl --user restart openclaw-gateway
+   ```
+   Другие варианты: `openai/gpt-4o-mini` (дешевле), `openai/o3`, `openai/o3-mini`. Ключ уже в `~/.openclaw/openai.env`.
+
+2. **Вернуть обратно на OAuth (Codex)** — если расход по API окажется выше ожидаемого:
+   ```bash
+   jq '.agents.defaults.model.primary = "openai-codex/gpt-5.3-codex"' ~/.openclaw/openclaw.json > ~/.openclaw/openclaw.json.tmp && mv ~/.openclaw/openclaw.json.tmp ~/.openclaw/openclaw.json
+   systemctl --user restart openclaw-gateway
+   ```
+   После этого бот снова будет использовать подписку ChatGPT (Codex), расход по API прекратится.
+
 ### 8.1 Календарь (CalDAV / khal)
 
 Чтобы бот видел календарь и мог отвечать на вопросы про встречи и расписание, нужен skill **caldav-calendar** (он даёт агенту инструменты для вызова `khal`).
@@ -206,6 +247,8 @@ systemctl --user restart openclaw-gateway
 **Предварительно:** на VPS должны быть настроены vdirsyncer и khal (CalDAV, например Larnilane/Mail.ru: Рабочий, Личный и др.). Коллекции синхронизируются в локальные каталоги; перед установкой skill убедись, что `vdirsyncer sync` и `khal list` работают под пользователем `cerebro`.
 
 **Часовой пояс:** если в боте время событий на час назад — в `~/.config/khal/config` в секции `[locale]` добавь `local_timezone = Europe/Madrid` (или свой пояс). Без этого khal использует системный TZ VPS (часто UTC).
+
+**Время «который час?» отстаёт на час:** на VPS системный TZ = UTC, а `session_status` берёт время процесса. Нужно запускать gateway с TZ пользователя. В unit сервиса `~/.config/systemd/user/openclaw-gateway.service` добавить (один раз): `Environment=TZ=Europe/Madrid`, затем `systemctl --user daemon-reload` и `systemctl --user restart openclaw-gateway`.
 
 Установка skill:
 
