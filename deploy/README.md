@@ -75,7 +75,7 @@ chmod +x ~/phase3-config.sh
 ~/phase3-config.sh
 ```
 
-**Файлы workspace из репо (SOUL, USER, AGENTS):**
+**Файлы workspace из репо (SOUL, USER, AGENTS, IDENTITY, TOOLS):**
 
 | Файл в workspace | Репо | Назначение |
 |------------------|------|------------|
@@ -83,6 +83,7 @@ chmod +x ~/phase3-config.sh
 | USER.md | `core/user-profile.md` | Профиль пользователя, тон, приоритеты. |
 | AGENTS.md | `core/agents.md` | Операционные инструкции: Chief of Staff, память, советники, Decision Framework, протоколы. |
 | IDENTITY.md | `core/identity.md` | Имя агента, эмодзи, краткое описание (опционально). |
+| TOOLS.md | `core/tools.md` | Подсказки по инструментам: когда вызывать session_status, календарь, остальные skills (опционально). |
 
 Профиль пользователя (чтобы бот «знал» часовой пояс и базовый контекст) лежит в репо: `core/user-profile.md`. Скрипт phase3 при наличии папки `~/.openclaw/workspace` создаёт симлинк `~/.openclaw/workspace/USER.md` → `~/cerebro-memory/core/user-profile.md`. **После рефактора** для подключения AGENTS на VPS один раз выполнить:
 
@@ -95,6 +96,13 @@ systemctl --user restart openclaw-gateway
 
 ```bash
 ln -sf ~/cerebro-memory/core/identity.md ~/.openclaw/workspace/IDENTITY.md
+systemctl --user restart openclaw-gateway
+```
+
+Подключить TOOLS (подсказки по инструментам):
+
+```bash
+ln -sf ~/cerebro-memory/core/tools.md ~/.openclaw/workspace/TOOLS.md
 systemctl --user restart openclaw-gateway
 ```
 
@@ -111,7 +119,7 @@ systemctl --user restart openclaw-gateway
 
 ```bash
 # Симлинки и размеры
-ls -la ~/.openclaw/workspace/SOUL.md ~/.openclaw/workspace/USER.md ~/.openclaw/workspace/AGENTS.md ~/.openclaw/workspace/IDENTITY.md 2>/dev/null
+ls -la ~/.openclaw/workspace/SOUL.md ~/.openclaw/workspace/USER.md ~/.openclaw/workspace/AGENTS.md ~/.openclaw/workspace/IDENTITY.md ~/.openclaw/workspace/TOOLS.md 2>/dev/null
 
 # Сервис и последние логи
 systemctl --user is-active openclaw-gateway
