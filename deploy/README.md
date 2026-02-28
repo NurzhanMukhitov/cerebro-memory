@@ -219,6 +219,30 @@ systemctl --user restart openclaw-gateway
 
 **Если бот пишет «календарь не подключён» / «нет доступа»:** (1) Логи gateway: `journalctl --user -u openclaw-gateway -n 100 --no-pager`. (2) Детальный лог (вызовы tool): `tail -200 /tmp/openclaw/openclaw-$(date +%Y-%m-%d).log` — искать `embedded run tool` и имя tool (если нет вызова caldav/khal/calendar — модель не вызывает инструмент; в манифесте явно указано вызывать инструмент с именем/описанием caldav_calendar, khal, calendar). (3) При ошибке `khal: command not found` — добавить PATH в user unit и сделать `systemctl --user daemon-reload`.
 
+### 8.2 Напоминание за 15 мин до события в календаре
+
+Скрипт `deploy/calendar-reminder-15min.sh` раз в 5 минут смотрит календарь (khal), находит события, которые начинаются через 12–18 мин, и шлёт в Telegram сообщение вида «⏰ Через ~15 мин: [название события]». По умолчанию учитываются только календари, в имени которых есть «Рабочий» (переменная `CALENDAR_FILTER`; чтобы напоминать обо всех — задать `CALENDAR_FILTER=*`).
+
+**Требования на VPS:** khal, curl. Токен и chat_id для отправки в Telegram задаются в `~/.openclaw/calendar-reminder.env` (тот же бот и чат, что у gateway):
+
+```bash
+# ~/.openclaw/calendar-reminder.env (chmod 600)
+TELEGRAM_BOT_TOKEN=123456:ABC...
+TELEGRAM_CHAT_ID=211683644
+# Опционально: только календари с "Рабочий" в имени (по умолчанию). Для всех событий:
+# CALENDAR_FILTER=*
+```
+
+**Cron** (под пользователем cerebro): запускать скрипт каждые 5 мин:
+
+```bash
+crontab -e
+# добавить строку (путь к репо — свой):
+*/5 * * * * /home/cerebro/cerebro-memory/deploy/calendar-reminder-15min.sh
+```
+
+Проверка вручную: `bash ~/cerebro-memory/deploy/calendar-reminder-15min.sh` — при наличии события в окне 12–18 мин в чат должно прийти одно сообщение. Дедуп: уже отправленные события записываются в `~/.openclaw/calendar-15m-sent`, повторно не шлются.
+
 ### 9. Фаза 6: Systemd
 
 ```bash
