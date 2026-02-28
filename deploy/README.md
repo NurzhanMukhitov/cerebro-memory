@@ -303,6 +303,40 @@ Host cerebro-vps
 
 Ключи и пароли в репо не хранить. Переменные `VPS_HOST`/`VPS_USER` при необходимости держать в `deploy/.env` (добавь `deploy/.env` в `.cursorignore`, чтобы агент не читал файл).
 
+### Git pull на VPS без ввода пароля (Deploy Key)
+
+Чтобы `run-on-vps.sh "cd ~/cerebro-memory && git pull ..."` работал без запроса логина/пароля, настрой на VPS **SSH Deploy Key** (один ключ только для этого репо, без токенов GitHub).
+
+**На VPS** под пользователем `cerebro`:
+
+1. Создать ключ (без пароля):
+   ```bash
+   ssh-keygen -t ed25519 -C "cerebro-vps-github" -f ~/.ssh/cerebro_memory_deploy -N ""
+   ```
+2. Вывести публичный ключ и скопировать:
+   ```bash
+   cat ~/.ssh/cerebro_memory_deploy.pub
+   ```
+3. В GitHub: репозиторий **NurzhanMukhitov/cerebro-memory** → Settings → Deploy keys → Add deploy key. Вставить ключ, название например `cerebro-node-1`. Read-only достаточно. Сохранить.
+4. На VPS в `~/.ssh/config` добавить (чтобы для GitHub использовался только этот ключ):
+   ```
+   Host github.com
+     HostName github.com
+     User git
+     IdentityFile ~/.ssh/cerebro_memory_deploy
+     IdentitiesOnly yes
+   ```
+5. Переключить remote на SSH и проверить pull:
+   ```bash
+   cd ~/cerebro-memory
+   git remote set-url origin git@github.com:NurzhanMukhitov/cerebro-memory.git
+   git pull
+   ```
+   Должно пройти без запроса. При первом подключении к GitHub ввести `yes` для подтверждения host key.
+
+После этого с локальной машины или через агента можно вызывать:
+`./deploy/run-on-vps.sh "cd ~/cerebro-memory && git pull && systemctl --user restart openclaw-gateway"` — без ввода пароля на VPS.
+
 ---
 
 ## Подключение skills
