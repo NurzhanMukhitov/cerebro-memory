@@ -150,6 +150,8 @@ systemctl --user restart openclaw-gateway
 
 **Предварительно:** на VPS должны быть настроены vdirsyncer и khal (CalDAV, например Larnilane/Mail.ru: Рабочий, Личный и др.). Коллекции синхронизируются в локальные каталоги; перед установкой skill убедись, что `vdirsyncer sync` и `khal list` работают под пользователем `cerebro`.
 
+**Часовой пояс:** если в боте время событий на час назад — в `~/.config/khal/config` в секции `[locale]` добавь `local_timezone = Europe/Madrid` (или свой пояс). Без этого khal использует системный TZ VPS (часто UTC).
+
 Установка skill:
 
 ```bash
