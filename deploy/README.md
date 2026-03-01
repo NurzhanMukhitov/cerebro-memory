@@ -501,6 +501,8 @@ Host cerebro-vps
 | 4 | **caldav-calendar** | Сначала vdirsyncer + khal (CalDAV, напр. Larnilane/Mail.ru). Затем `cd ~/.openclaw/workspace && npx clawhub install caldav-calendar`. Перезапуск gateway. | «Что на неделе?», «Встречи на завтра», «Расписание на понедельник». |
 | 5 | **remind** | На VPS (с nvm: `export NVM_DIR=$HOME/.nvm; [ -s "\$NVM_DIR/nvm.sh" ] && . "\$NVM_DIR/nvm.sh"`): `cd ~/.openclaw/workspace && npx clawhub install remind`. Затем `systemctl --user restart openclaw-gateway`. Навык для напоминаний по времени и расписанию. | «Напомни в 18:00», «Напомни позвонить завтра в 10:00». |
 | 6 | **rss-reader** | `cd ~/.openclaw/workspace && npx clawhub install rss-reader --force` (skill помечен suspicious — установка с --force). Перезапуск gateway. Ленты настраиваются отдельно (см. ниже). | «Какие новости?», «Что в лентах?». |
+| 7 | **gog** | Сначала бинарник gog на VPS, OAuth (на Mac или VPS), копирование credentials и client_secret на VPS, PATH/env в user unit. Затем: `cd ~/.openclaw/workspace && npx clawhub install gog --force` (skill помечен suspicious), перезапуск gateway. Подробно — см. раздел «Настройка Gog» ниже. | «Покажи последние письма за день», «Что в календаре Google на сегодня?». |
+| 8 | **strava** | Создать приложение на [strava.com/settings/api](https://www.strava.com/settings/api), получить OAuth-токены (см. «Настройка Strava» ниже), на VPS установить skill и прописать STRAVA_* в env или openclaw.json, перезапуск gateway. | «Как прошла последняя тренировка?», «Сколько накатал за неделю?», «План с учётом Strava». |
 
 **Настройка rss-reader (ленты новостей):** фиды хранятся в `~/.openclaw/workspace/skills/rss-reader/data/feeds.json`. Добавить ленту на VPS (PATH с node обязателен):
 
@@ -514,7 +516,64 @@ node scripts/rss.js check
 
 Примеры лент из SKILL.md: Hacker News `https://news.ycombinator.com/rss`, TechCrunch `https://techcrunch.com/feed/`, The Verge `https://www.theverge.com/rss/index.xml`. Удалить: `node scripts/rss.js remove "URL"`. В `feeds.json` можно править вручную: `name`, `category`, `enabled`, в `settings` — `maxItemsPerFeed`, `maxAgeDays`, `summaryEnabled`.
 
-**Убрать дубликат «Готово: отправил сообщение в Telegram…» после напоминания:** выполнить на VPS `~/cerebro-memory/deploy/subagent-announce-skip.sh` (нужен `jq`). Скрипт добавляет в `~/.openclaw/openclaw.json` опцию `agents.defaults.subagents.announce = "skip"`, чтобы результат subagent не слался в чат отдельным сообщением. Требуется OpenClaw с поддержкой этой опции (см. [PR #13303](https://github.com/openclaw/openclaw/pull/13303)); после выполнения — `systemctl --user restart openclaw-gateway`.
+**Настройка Gog (Google Workspace CLI):** skill даёт доступ к Gmail, Google Calendar, Drive через CLI `gog` (gogcli). Риски и защита: см. [docs/bot-audit-2026-02.md](../docs/bot-audit-2026-02.md) и обсуждение (OAuth, права на файлы, минимум scope, подтверждение перед отправкой писем и созданием событий).
+
+1. **GCP:** создать проект (или использовать существующий), включить Gmail API, Google Calendar API (при необходимости Drive API и др.). Credentials → Create credentials → OAuth client ID → тип **Desktop app**, скачать `client_secret_*.json`. Файл не коммитить в репо.
+2. **OAuth на Mac (удобнее):** установить gog: `brew install steipete/tap/gogcli`. Выполнить `gog auth credentials /path/to/client_secret_*.json`, затем `gog auth add you@gmail.com --services gmail,calendar` (или нужный набор). Пройти вход в браузере. Узнать, куда gog сохраняет токены (часто `~/.config/gog`), подготовить копирование на VPS.
+3. **VPS — бинарник gog:** скачать релиз для Linux amd64 с [github.com/steipete/gogcli/releases](https://github.com/steipete/gogcli/releases), распаковать. Установить: `sudo install -m 0755 gog /usr/local/bin/gog` или `install -m 0755 gog ~/bin/gog` (тогда добавить `~/bin` в PATH в user unit).
+4. **VPS — credentials:** скопировать на VPS в домашний каталог `cerebro`: `client_secret_*.json` и папку с токенами gog (например `~/.config/gog`). Разместить так, чтобы процесс gateway читал их под пользователем `cerebro`. Права: `chmod 600` на файлы с секретами, `chmod 700` на каталог.
+5. **User unit gateway:** убедиться, что `gog` в PATH (если в `~/bin` — добавить в `~/.config/systemd/user/openclaw-gateway.service` строку `Environment="PATH=/home/cerebro/bin:..."`). При необходимости задать `GOG_ACCOUNT`, `GOG_KEYRING_PASSWORD` (Environment= или EnvironmentFile=). Выполнить: `systemctl --user daemon-reload`, `systemctl --user restart openclaw-gateway`.
+6. **Установка skill:** на VPS с nvm: `export NVM_DIR=$HOME/.nvm; [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"`, `export PATH="$HOME/.nvm/versions/node/v22.22.0/bin:$PATH"`, `cd ~/.openclaw/workspace && npx clawhub install gog --force`, `systemctl --user restart openclaw-gateway`.
+7. **Проверка:** на VPS `gog auth list`, при необходимости `gog gmail search 'newer_than:1d' --max 2`. В Telegram: «Покажи последние письма за сегодня», «Что в календаре Google на эту неделю?». Перед отправкой писем/созданием событий бот должен запрашивать подтверждение (правила в SOUL/TOOLS/AGENTS).
+
+**Что делать дальше (Gog) — твои шаги 1–6 и 9:**
+
+| Шаг | Где | Действие |
+|-----|-----|----------|
+| **1** | Браузер (GCP) | [Google Cloud Console](https://console.cloud.google.com) → проект → APIs & Services → включить Gmail API, Google Calendar API (при необходимости Drive и др.) → Credentials → Create credentials → OAuth client ID → тип **Desktop app** → скачать JSON. Сохранить как `client_secret_*.json` (не коммитить). |
+| **2** | Mac | `brew install steipete/tap/gogcli`. Затем: `gog auth credentials /путь/к/client_secret_*.json`, `gog auth add твой@gmail.com --services gmail,calendar` (или gmail,calendar,drive). Пройти OAuth в браузере. Токены появятся в `~/.config/gog` — эту папку и client_secret потом копируешь на VPS. |
+| **3** | VPS (SSH cerebro) | Скачать релиз: открыть [releases](https://github.com/steipete/gogcli/releases), взять `gogcli_*_linux_amd64.tar.gz`. На VPS: `cd /tmp && curl -fsSL -o gog.tgz "URL_из_страницы" && tar -xzf gog.tgz && sudo install -m 0755 gog /usr/local/bin/gog`. Проверка: `gog --version`. |
+| **4** | Mac → VPS | Скопировать на VPS (в домашний каталог `cerebro`): `client_secret_*.json` и папку `~/.config/gog`. На VPS разместить: `client_secret` в `~/.config/gog/` или рядом, токены в `~/.config/gog/`. Выполнить: `chmod 700 ~/.config/gog`, `chmod 600 ~/.config/gog/*`. |
+| **5** | VPS | Если gog в `/usr/local/bin` — PATH уже ок. Если ставил в `~/bin`: в `~/.config/systemd/user/openclaw-gateway.service` добавить `Environment="PATH=/home/cerebro/bin:/usr/local/bin:..."`. При нескольких аккаунтах: `Environment=GOG_ACCOUNT=твой@gmail.com`. Затем: `systemctl --user daemon-reload && systemctl --user restart openclaw-gateway`. |
+| **6** | VPS | `export NVM_DIR=$HOME/.nvm; [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"` и `export PATH="$HOME/.nvm/versions/node/v22.22.0/bin:$PATH"` (или свой путь node). Затем: `cd ~/.openclaw/workspace && npx clawhub install gog --force` и `systemctl --user restart openclaw-gateway`. |
+| **9** | VPS + Telegram | На VPS: `gog auth list` (должен быть аккаунт). Опционально: `gog gmail search 'newer_than:1d' --max 2`. В Telegram написать: «Покажи последние письма за сегодня», «Что в календаре Google на эту неделю?» — бот должен вызвать gog и ответить. Для проверки подтверждения: «Напиши письмо на X с темой Y» — бот должен спросить подтверждение, не отправлять без «да». |
+
+**Настройка Strava (тренировки, вел, бег, плавание):**
+
+1. **Strava API (у себя в браузере):** зайти на [strava.com/settings/api](https://www.strava.com/settings/api). Создать приложение: название (например «Cerebro»), Category — что подходит, Authorization Callback Domain — для получения токена локально можно указать `localhost`. Сохранить **Client ID** и **Client Secret**.
+2. **Получить OAuth-токены (один раз):** в браузере открыть (подставить свой Client ID):
+   ```
+   https://www.strava.com/oauth/authorize?client_id=ТВОЙ_CLIENT_ID&response_type=code&redirect_uri=http://localhost&approval_prompt=force&scope=activity:read_all
+   ```
+   Войти в Strava и разрешить доступ. После редиректа в адресной строке будет `http://localhost/?code=XXXXX&scope=...` — скопировать значение `code=XXXXX` (только код, без `code=`).
+3. **Обменять code на токены (на Mac или VPS):**
+   ```bash
+   curl -X POST https://www.strava.com/oauth/token \
+     -d client_id=ТВОЙ_CLIENT_ID \
+     -d client_secret=ТВОЙ_CLIENT_SECRET \
+     -d code=КОД_ИЗ_ШАГА_2 \
+     -d grant_type=authorization_code
+   ```
+   В ответе будут `access_token` и `refresh_token` — сохранить оба.
+4. **На VPS — установить skill:** (PATH с node обязателен)
+   ```bash
+   export NVM_DIR=$HOME/.nvm; [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+   export PATH="$HOME/.nvm/versions/node/v22.22.0/bin:$PATH"
+   cd ~/.openclaw/workspace && npx clawhub search strava
+   ```
+   Выбрать slug (например `strava`) и установить: `npx clawhub install strava` (или тот slug, что показан). Перезапуск: `systemctl --user restart openclaw-gateway`.
+5. **На VPS — передать ключи боту.** Вариант A — через репо (рекомендуется): скопировать `deploy/strava.env.example` в `deploy/strava.env`, вписать в него Client ID, Client Secret, Access Token, Refresh Token (файл в .gitignore, не коммитится). Затем с Mac выполнить `./deploy/apply-strava.sh` — скрипт скопирует `strava.env` на VPS в `~/.openclaw/strava.env`. Один раз добавить в `~/.config/systemd/user/openclaw-gateway.service` строку `EnvironmentFile=%h/.openclaw/strava.env`, далее `systemctl --user daemon-reload` и перезапуск gateway. Вариант B — вручную на VPS: создать `~/.openclaw/strava.env` с содержимым:
+   ```
+   STRAVA_CLIENT_ID=твой_client_id
+   STRAVA_CLIENT_SECRET=твой_client_secret
+   STRAVA_ACCESS_TOKEN=access_token_из_шага_3
+   STRAVA_REFRESH_TOKEN=refresh_token_из_шага_3
+   ```
+   Выполнить `chmod 600 ~/.openclaw/strava.env`. В `~/.config/systemd/user/openclaw-gateway.service` добавить строку `EnvironmentFile=%h/.openclaw/strava.env` (если ещё нет), затем `systemctl --user daemon-reload` и `systemctl --user restart openclaw-gateway`.  
+   Вариант B — в `~/.openclaw/openclaw.json` в секции skills (если skill поддерживает) прописать `env` с этими переменными (см. документацию конкретного skill).
+6. **Проверка:** в Telegram написать: «Как прошла последняя тренировка?», «Сколько накатал за неделю?» — бот должен вызвать Strava и ответить по данным из аккаунта.
+
+**Дубликат после напоминания («Subagent main finished» + «Готово: дождался … и отправил»):** в OpenClaw **2026.2.25** опция `agents.defaults.subagents.announce = "skip"` **не поддерживается** — при добавлении этого ключа gateway падает с «Unrecognized key: announce». Скрипт `~/cerebro-memory/deploy/subagent-announce-skip.sh` пока **не запускать**. После выхода версии OpenClaw с [PR #13303](https://github.com/openclaw/openclaw/pull/13303) (announce: user|parent|skip) обновите OpenClaw, затем выполните скрипт и перезапуск gateway. Если уже добавили ключ и gateway не стартует — удалить: `jq 'del(.agents.defaults.subagents.announce)' ~/.openclaw/openclaw.json > ~/.openclaw/openclaw.json.tmp && mv ~/.openclaw/openclaw.json.tmp ~/.openclaw/openclaw.json` и `systemctl --user restart openclaw-gateway`.
 
 Логи при проблемах: `journalctl --user -u openclaw-gateway -n 50 --no-pager`.
 
