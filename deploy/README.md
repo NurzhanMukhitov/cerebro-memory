@@ -662,7 +662,15 @@ healthsync fetch --types steps,heartRate,sleepAnalysis --start 2026-01-01 --end 
 ./deploy/apple-health-push-snapshot.sh
 ```
 
-Скрипт вызовет `healthsync fetch` за последние 7 дней, соберёт снимок и скопирует его на VPS в `~/.openclaw/workspace/data/apple-health-snapshot.md`. Бот и советники Health/Sport будут учитывать этот файл.
+**Два снимка (так и задумано):**
+
+1. **Первый раз — базовая история (3 месяца):** один раз выгрузи длинный период для трендов. На Mac:
+   ```bash
+   APPLE_HEALTH_BASELINE=90 ./deploy/apple-health-push-snapshot.sh
+   ```
+   Создаётся `apple-health-baseline.md` на VPS (90 дней с агрегацией по дням). Обновлять вручную раз в месяц/квартал при желании.
+
+2. **Каждый день — только свежие данные (7 дней):** по умолчанию скрипт выгружает последние **7 дней** в `apple-health-snapshot.md`. Cron в 21:00 запускает именно это — без лишнего объёма. Агент читает оба файла: baseline для контекста по времени, snapshot для актуальной недели.
 
 Чтобы снимок обновлялся каждый день в **21:00**, добавь задание в cron на Mac.
 
