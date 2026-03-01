@@ -6,8 +6,10 @@
 # Добавляет в ~/.openclaw/openclaw.json:
 #   agents.defaults.subagents.announce = "skip"
 #
-# Требуется OpenClaw с поддержкой announce (PR #13303 или новее). Если ключ не поддерживается,
-# gateway может игнорировать его или выдать ошибку — тогда обновите OpenClaw.
+# Требуется OpenClaw с поддержкой announce (PR #13303 или новее). В версии 2026.2.25 ключ
+# НЕ поддерживается: после добавления gateway падает с "Unrecognized key: announce".
+# Удалить ключ вручную: jq 'del(.agents.defaults.subagents.announce)' ~/.openclaw/openclaw.json > ...tmp && mv ...tmp ~/.openclaw/openclaw.json
+# Затем: systemctl --user restart openclaw-gateway
 #
 # Запуск: на VPS под пользователем cerebro. Требуется jq.
 

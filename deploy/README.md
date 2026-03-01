@@ -573,6 +573,16 @@ node scripts/rss.js check
    Вариант B — в `~/.openclaw/openclaw.json` в секции skills (если skill поддерживает) прописать `env` с этими переменными (см. документацию конкретного skill).
 6. **Проверка:** в Telegram написать: «Как прошла последняя тренировка?», «Сколько накатал за неделю?» — бот должен вызвать Strava и ответить по данным из аккаунта.
 
+**Обновление токена Strava (раз в ~6 часов или при 401):** Access token Strava живёт ~6 часов. Если бот перестал отдавать данные или в логах 401 — обновить токен. Локально (подставь значения из `deploy/strava.env`):
+   ```bash
+   curl -s -X POST https://www.strava.com/oauth/token \
+     -d client_id="ТВОЙ_CLIENT_ID" \
+     -d client_secret="ТВОЙ_CLIENT_SECRET" \
+     -d grant_type=refresh_token \
+     -d refresh_token="ТВОЙ_REFRESH_TOKEN"
+   ```
+   В ответе взять новые `access_token` и `refresh_token`, вписать их в `deploy/strava.env` (STRAVA_ACCESS_TOKEN и STRAVA_REFRESH_TOKEN), затем выполнить `./deploy/apply-strava.sh` и перезапуск gateway на VPS. На VPS можно то же сделать вручную, обновив `~/.openclaw/strava.env` и выполнив `systemctl --user restart openclaw-gateway`.
+
 **Дубликат после напоминания («Subagent main finished» + «Готово: дождался … и отправил»):** в OpenClaw **2026.2.25** опция `agents.defaults.subagents.announce = "skip"` **не поддерживается** — при добавлении этого ключа gateway падает с «Unrecognized key: announce». Скрипт `~/cerebro-memory/deploy/subagent-announce-skip.sh` пока **не запускать**. После выхода версии OpenClaw с [PR #13303](https://github.com/openclaw/openclaw/pull/13303) (announce: user|parent|skip) обновите OpenClaw, затем выполните скрипт и перезапуск gateway. Если уже добавили ключ и gateway не стартует — удалить: `jq 'del(.agents.defaults.subagents.announce)' ~/.openclaw/openclaw.json > ~/.openclaw/openclaw.json.tmp && mv ~/.openclaw/openclaw.json.tmp ~/.openclaw/openclaw.json` и `systemctl --user restart openclaw-gateway`.
 
 Логи при проблемах: `journalctl --user -u openclaw-gateway -n 50 --no-pager`.

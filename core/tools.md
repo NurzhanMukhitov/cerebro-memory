@@ -24,7 +24,7 @@
 
 ## Strava (тренировки)
 
-- Вопросы про тренировки в Strava (последняя активность, километраж за неделю/месяц, вел/бег/плавание, темп, пульс) — вызывать tool из skill **strava** (по имени/описанию с `strava`, `activity`). Сначала вызов — потом ответ.
+- Интеграция Strava уже настроена (STRAVA_ACCESS_TOKEN в окружении). Вопросы про последнюю тренировку, активности, километраж — **вызывать exec**: curl к Strava API (`https://www.strava.com/api/v3/athlete/activities?per_page=10`, для деталей — `/activities/ACTIVITY_ID`), заголовок `Authorization: Bearer $STRAVA_ACCESS_TOKEN`. Документация: skill strava (SKILL.md). Сначала exec с запросом к API — потом ответ. Не писать «нужно подключить» — подключено.
 
 ## Google / Gog (gog)
 
