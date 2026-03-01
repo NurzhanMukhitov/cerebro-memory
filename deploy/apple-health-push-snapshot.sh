@@ -59,7 +59,7 @@ else
   AGGREGATE=""
   echo "Запрашиваю данные за последние $DAYS дней (healthsync)..."
 fi
-TYPES="steps,heartRate,heartRateVariability,sleepAnalysis,activeEnergyBurned,workouts"
+TYPES="steps,heartRate,heartRateVariability,sleepAnalysis,activeEnergyBurned,workouts,weight,bodyMassIndex,bodyFatPercentage,leanBodyMass"
 
 JSON=$(healthsync fetch --start "$START_ISO" --end "$END_ISO" --types "$TYPES" $AGGREGATE --format json 2>/tmp/healthsync-err.txt) || true
 if [ -s /tmp/healthsync-err.txt ]; then

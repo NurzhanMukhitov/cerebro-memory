@@ -247,7 +247,7 @@ systemctl --user restart openclaw-gateway
 
 **Предварительно:** на VPS должны быть настроены vdirsyncer и khal (CalDAV, например Larnilane/Mail.ru: Рабочий, Личный и др.). Коллекции синхронизируются в локальные каталоги; перед установкой skill убедись, что `vdirsyncer sync` и `khal list` работают под пользователем `cerebro`.
 
-**Часовой пояс:** если в боте время событий на час назад — в `~/.config/khal/config` в секции `[locale]` добавь `local_timezone = Europe/Madrid` (или свой пояс). Без этого khal использует системный TZ VPS (часто UTC).
+**Часовой пояс:** если в боте время событий на час назад — в `~/.config/khal/config` в секции `[locale]` добавь `local_timezone = Europe/Madrid` (или свой пояс). Без этого khal использует системный TZ VPS (часто UTC). При добавлении событий агенту передавать время в Madrid, не в UTC — иначе в календаре будет сдвиг (см. manifest: правила про Мск↔Мадрид и перевод часов Испании).
 
 **Время «который час?» отстаёт на час:** на VPS системный TZ = UTC, а `session_status` берёт время процесса. Нужно запускать gateway с TZ пользователя. В unit сервиса `~/.config/systemd/user/openclaw-gateway.service` добавить (один раз): `Environment=TZ=Europe/Madrid`, затем `systemctl --user daemon-reload` и `systemctl --user restart openclaw-gateway`.
 
@@ -644,6 +644,8 @@ open "iOS Health Sync App/iOS Health Sync App.xcodeproj"
 1. На **iPhone**: в приложении HealthSync Helper нажми «Start Server» → «Show QR Code» (при необходимости «Copy» для буфера обмена).
 2. На **Mac**: `healthsync scan` (читает QR из буфера). Либо скриншот QR сохрани в файл и выполни `healthsync scan --file ~/Desktop/qr.png`.
 3. После привязки конфиг в `~/.healthsync/config.json`, токен в связке ключей macOS. При ошибках: [TROUBLESHOOTING](https://github.com/mneves75/ai-health-sync-ios/blob/master/DOCS/TROUBLESHOOTING.md) (No devices found, Pairing code expired, Certificate mismatch).
+
+**Фиксированный порт (опционально):** в репо cerebro-memory в `ai-health-sync-ios` приложение пропатчено: сервер слушает порт **8443** вместо случайного. Пересобери приложение в Xcode (⌘R), установи на iPhone, один раз заново отсканируй QR — дальше порт не будет меняться при перезапуске приложения, повторно сканировать QR не нужно.
 
 **Шаг 5. Проверка выгрузки данных**
 
