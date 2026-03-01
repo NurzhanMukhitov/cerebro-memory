@@ -592,6 +592,119 @@ node scripts/rss.js check
    5 6 * * * . ~/.openclaw/strava.env 2>/dev/null; bash ~/cerebro-memory/deploy/strava-sync-to-workspace.sh
    ```
 
+**Данные Ultrahuman Ring (сон, восстановление, пульс, HRV):** Публичного API для личных аккаунтов нет — есть только **Partner API** (для одобренных приложений, OAuth на https://partner.ultrahuman.com). Варианты:
+
+1. **Партнёрский доступ:** подать заявку в Ultrahuman на партнёрство; при одобрении можно будет сделать интеграцию по аналогии со Strava (токены, скрипт, снимок). Документация: [vision.ultrahuman.com/developer-docs](https://vision.ultrahuman.com/developer-docs).
+2. **Снимок вручную (сейчас):** если в приложении Ultrahuman есть экспорт данных или ты выгружаешь отчёт (скрин, текст, CSV) — положи на VPS файл `~/.openclaw/workspace/data/ultrahuman-snapshot.md` (или `.txt`). Кратко опиши в нём сон, Recovery Index, нагрузку за последние дни, что видно в приложении. Агент и советники Health/Sport при запросах по восстановлению и сну могут читать этот файл (read). Раз в несколько дней обновляй содержимое и перезаливай на VPS (scp или вставка через SSH).
+3. **Через Apple Health:** кольцо синхронизируется с Apple Health (HRV, температура, сон). Приложения вроде HealthExport экспортируют Health в CSV. Можно периодически экспортировать, при необходимости свести в краткий текст и положить в `workspace/data/ultrahuman-snapshot.md` как в п.2.
+
+В agents и tools указано: при наличии `data/ultrahuman-snapshot.md` учитывать его для Health/Sport наравне со снимком Strava.
+
+**Apple Health (HealthKit)** — пошагово:
+
+**Способ A: Ручной экспорт (без Mac как моста)**
+
+1. На iPhone: открой «Здоровье» → профиль (иконка) → «Экспорт всех данных о здоровье» — выгрузится архив. Либо установи приложение вроде [HealthExport](https://healthexport.app/) и экспортируй в CSV за нужный период.
+2. При необходимости сведи данные в краткий текст: сон (часы, качество), шаги за несколько дней, пульс/HRV если есть, тренировки. Сохрани в файл, например `apple-health-snapshot.md`.
+3. С Mac (из каталога репо) загрузи снимок на VPS:
+   ```bash
+   ./deploy/apple-health-push-snapshot.sh путь/к/apple-health-snapshot.md
+   ```
+   Файл попадёт в `~/.openclaw/workspace/data/apple-health-snapshot.md` на VPS; бот и советники Health/Sport будут его учитывать. Повторяй шаги 1–3 раз в несколько дней при желании обновить снимок.
+
+**Способ B: Автоматически через Mac + healthsync (iPhone и Mac в одной Wi‑Fi)** — с самого начала.
+
+**Шаг 1. Клонировать репо и собрать iOS-приложение**
+
+```bash
+git clone https://github.com/mneves75/ai-health-sync-ios.git
+cd ai-health-sync-ios
+open "iOS Health Sync App/iOS Health Sync App.xcodeproj"
+```
+
+В Xcode: выбери симулятор или iPhone → ⌘R (Build and Run). При первом запуске разреши доступ к «Здоровье» (шаги, пульс, сон, тренировки). Экосистема [healthkit-sync](https://playbooks.com/skills/openclaw/skills/healthkit-sync): **iOS-приложение** (сервер mTLS + QR) + **CLI healthsync** на Mac.
+
+Исходники описаны в [references/ARCHITECTURE](https://github.com/openclaw/skills/tree/HEAD/skills/mneves75/healthkit-sync/references) skill’а: проект «ai-health-sync-ios-clawdbot» (iOS Health Sync App + macOS/HealthSyncCLI). Репозиторий с кодом: **[github.com/mneves75/ai-health-sync-ios](https://github.com/mneves75/ai-health-sync-ios)** (HealthSync Helper App). Там же Quick Start, [DOCS/QUICKSTART.md](https://github.com/mneves75/ai-health-sync-ios/blob/master/DOCS/QUICKSTART.md), [TROUBLESHOOTING](https://github.com/mneves75/ai-health-sync-ios/blob/master/DOCS/TROUBLESHOOTING.md). Если выложен только skill (документация), а не полный репозиторий — напиши в сообщество OpenClaw (Discord/форум), откуда взять сборку iOS-приложения и как собрать CLI.
+
+**Шаг 2. Установить CLI healthsync на Mac**
+
+- **Homebrew:** сначала `brew tap mneves75/tap`, затем `brew install healthsync` (две отдельные команды).
+- **Из исходников:** `cd ai-health-sync-ios/macOS/HealthSyncCLI` → `swift build -c release` → `sudo cp .build/release/healthsync /usr/local/bin/`
+- **Готовый бинарник:** [Releases](https://github.com/mneves75/ai-health-sync-ios/releases) (arm64 или x86_64), распаковать и добавить в PATH.
+
+Проверка: `healthsync version` или `healthsync --help`. iPhone и Mac должны быть в одной Wi‑Fi.
+
+**Шаг 3. Установить приложение на iPhone**
+
+Собранное в шаге 1 приложение запусти на реальном iPhone (или установи через Xcode на устройство). Разреши доступ к «Здоровье». Держи iPhone и Mac в одной сети.
+
+**Шаг 4. Привязать iPhone и Mac (один раз)**
+
+1. На **iPhone**: в приложении HealthSync Helper нажми «Start Server» → «Show QR Code» (при необходимости «Copy» для буфера обмена).
+2. На **Mac**: `healthsync scan` (читает QR из буфера). Либо скриншот QR сохрани в файл и выполни `healthsync scan --file ~/Desktop/qr.png`.
+3. После привязки конфиг в `~/.healthsync/config.json`, токен в связке ключей macOS. При ошибках: [TROUBLESHOOTING](https://github.com/mneves75/ai-health-sync-ios/blob/master/DOCS/TROUBLESHOOTING.md) (No devices found, Pairing code expired, Certificate mismatch).
+
+**Шаг 5. Проверка выгрузки данных**
+
+```bash
+healthsync status
+healthsync types
+healthsync fetch --types steps,heartRate,sleepAnalysis --start 2026-01-01 --end 2026-01-07 --format json
+```
+
+Если команды выполняются и возвращают данные — связка работает. Типы: steps, heartRate, heartRateVariability, sleepAnalysis, workouts, weight и др. — см. [CLI Reference](https://github.com/mneves75/ai-health-sync-ios/blob/master/DOCS/learn/09-cli.md) в репо.
+
+**Шаг 6. Снимок на VPS и обновление по расписанию**
+
+Из каталога репо cerebro-memory на Mac:
+
+```bash
+./deploy/apple-health-push-snapshot.sh
+```
+
+Скрипт вызовет `healthsync fetch` за последние 7 дней, соберёт снимок и скопирует его на VPS в `~/.openclaw/workspace/data/apple-health-snapshot.md`. Бот и советники Health/Sport будут учитывать этот файл.
+
+Чтобы снимок обновлялся каждый день в **21:00**, добавь задание в cron на Mac.
+
+**Автоматически** (из корня репо на Mac):
+
+```bash
+./deploy/setup-apple-health-cron.sh
+```
+
+Скрипт добавит в crontab строку `0 21 * * *` (каждый день в 21:00). Если задание уже есть — не дублирует.
+
+**Вручную:** `crontab -e` и строка:
+
+```bash
+0 21 * * * cd /путь/к/cerebro-memory && ./deploy/apple-health-push-snapshot.sh
+```
+
+(Вечером в 21:00 Mac должен быть включён и в одной сети с iPhone.)
+
+**Как это работает в реальности**
+
+- **Ты ничего не делаешь в 21:00** — задание выполняется само. Cron в 21:00 запускает скрипт на Mac: тот забирает данные с iPhone через healthsync и отправляет снимок на VPS.
+- **Что нужно к 21:00:** Mac включён (или выйдет из сна по расписанию), iPhone в той же Wi‑Fi сети, приложение HealthSync Helper на iPhone уже было открыто/привязано (обычно один раз настроил — и всё).
+- **Xcode и кабель не нужны** для ежедневного снимка: healthsync работает по Wi‑Fi. Xcode и подключение по кабелю нужны только один раз — чтобы собрать и установить приложение HealthSync Helper на iPhone. Дальше достаточно Mac + iPhone в одной сети.
+- **Если в 21:00 Mac был выключен или в другой сети:** этот день снимок не обновится. Можно один раз вручную запустить, когда будешь у Mac:  
+  `cd /путь/к/cerebro-memory && ./deploy/apple-health-push-snapshot.sh`
+- **Проверить, что cron стоит:** `crontab -l` — должна быть строка с `apple-health-push-snapshot.sh` и `0 21 * * *`.
+
+**Шаг 7 (опционально). Skill для агента на VPS**
+
+Чтобы агент знал форматы и типы данных Health, в workspace на VPS можно добавить skill:
+
+```bash
+npx playbooks add skill openclaw/skills --skill healthkit-sync
+```
+
+Документация по типам данных и командам — в SKILL.md skill’а.
+
+---
+
+Итог: **ручной путь** — экспорт с телефона → файл → `apple-health-push-snapshot.sh путь/к/файлу`. **Автоматический** — репо [mneves75/ai-health-sync-ios](https://github.com/mneves75/ai-health-sync-ios) и шаги 1–6 выше.
+
 **Дубликат после напоминания («Subagent main finished» + «Готово: дождался … и отправил»):** в OpenClaw **2026.2.25** опция `agents.defaults.subagents.announce = "skip"` **не поддерживается** — при добавлении этого ключа gateway падает с «Unrecognized key: announce». Скрипт `~/cerebro-memory/deploy/subagent-announce-skip.sh` пока **не запускать**. После выхода версии OpenClaw с [PR #13303](https://github.com/openclaw/openclaw/pull/13303) (announce: user|parent|skip) обновите OpenClaw, затем выполните скрипт и перезапуск gateway. Если уже добавили ключ и gateway не стартует — удалить: `jq 'del(.agents.defaults.subagents.announce)' ~/.openclaw/openclaw.json > ~/.openclaw/openclaw.json.tmp && mv ~/.openclaw/openclaw.json.tmp ~/.openclaw/openclaw.json` и `systemctl --user restart openclaw-gateway`.
 
 Логи при проблемах: `journalctl --user -u openclaw-gateway -n 50 --no-pager`.
