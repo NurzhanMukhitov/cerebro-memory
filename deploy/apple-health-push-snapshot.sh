@@ -61,11 +61,14 @@ else
 fi
 TYPES="steps,heartRate,heartRateVariability,sleepAnalysis,activeEnergyBurned,workouts"
 
-JSON=$(healthsync fetch --start "$START_ISO" --end "$END_ISO" --types "$TYPES" $AGGREGATE --format json 2>/dev/null) || true
+JSON=$(healthsync fetch --start "$START_ISO" --end "$END_ISO" --types "$TYPES" $AGGREGATE --format json 2>/tmp/healthsync-err.txt) || true
+if [ -s /tmp/healthsync-err.txt ]; then
+  echo "healthsync fetch ошибка:" >&2
+  cat /tmp/healthsync-err.txt >&2
+fi
 
 if [ -z "$JSON" ] || [ "$JSON" = "[]" ]; then
-  echo "Не удалось получить данные (проверь привязку: healthsync status)." >&2
-  echo "Ручная загрузка: $0 путь/к/файлу.md" >&2
+  echo "Не удалось получить данные. Проверь: healthsync status (приложение на iPhone открыто? та же Wi‑Fi?). Ручная загрузка: $0 путь/к/файлу.md" >&2
   exit 1
 fi
 
