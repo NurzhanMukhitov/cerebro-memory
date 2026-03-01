@@ -27,7 +27,7 @@
 - Интеграция Strava уже настроена (STRAVA_ACCESS_TOKEN в окружении). Вопросы про последнюю тренировку, активности, километраж — **вызывать exec**: curl к Strava API (`https://www.strava.com/api/v3/athlete/activities?per_page=10`, для деталей — `/activities/ACTIVITY_ID`), заголовок `Authorization: Bearer $STRAVA_ACCESS_TOKEN`. Документация: skill strava (SKILL.md). Сначала exec с запросом к API — потом ответ. Не писать «нужно подключить» — подключено.
 - **Для советников Sport / Health / питание:** при рекомендациях по нагрузке, восстановлению, плану тренировок — использовать данные Strava. Если в workspace есть `data/strava-snapshot.md` (снимок активностей и статистики) — прочитать его через read; при необходимости актуализировать через exec к API или подождать следующего обновления снимка по cron.
 - **Ultrahuman Ring (сон, Recovery, HRV):** если в workspace есть `data/ultrahuman-snapshot.md` (или `.txt`) — прочитать через read и учесть при рекомендациях по сну, восстановлению, нагрузке. Файл обновляется пользователем вручную (в приложении API нет для личного использования).
-- **Apple Health (HealthKit):** при вопросе про данные из Health — читать `data/apple-health-snapshot.md` (последние 7 дней) и при наличии `data/apple-health-baseline.md` (история до 3 мес). Учитывать оба при рекомендациях Sport/Health.
+- **Apple Health (HealthKit):** при вопросе про данные Health, «весь период», «сколько данных» — **читать оба файла**: `data/apple-health-snapshot.md` и `data/apple-health-baseline.md`. Отвечать по объёму и содержимому обоих. Учитывать при рекомендациях Sport/Health.
 
 ## Google / Gog (gog)
 

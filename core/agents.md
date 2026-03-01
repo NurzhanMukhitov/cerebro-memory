@@ -47,7 +47,7 @@
 
 **Данные Ultrahuman Ring (сон, восстановление, HRV):** Если в workspace есть `data/ultrahuman-snapshot.md` (или `.txt`) — читать его при рекомендациях Health/Sport по сну, восстановлению, нагрузке и учитывать наравне со Strava. Файл пользователь обновляет вручную (экспорт из приложения или Apple Health); API для личного доступа у Ultrahuman пока нет.
 
-**Apple Health (HealthKit):** Читать `data/apple-health-snapshot.md` (свежие 7 дней) и при наличии `data/apple-health-baseline.md` (история до 3 мес). Учитывать при рекомендациях Health/Sport по сну, пульсу, шагам, тренировкам вместе со Strava и Ultrahuman.
+**Apple Health (HealthKit):** При запросе «весь период» или «сколько данных» — читать **оба** файла: `data/apple-health-snapshot.md` и `data/apple-health-baseline.md`; указывать суммарный объём. Учитывать при рекомендациях Health/Sport по сну, пульсу, шагам вместе со Strava и Ultrahuman.
 
 ---
 
