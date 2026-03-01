@@ -25,6 +25,7 @@
 ## Strava (тренировки)
 
 - Интеграция Strava уже настроена (STRAVA_ACCESS_TOKEN в окружении). Вопросы про последнюю тренировку, активности, километраж — **вызывать exec**: curl к Strava API (`https://www.strava.com/api/v3/athlete/activities?per_page=10`, для деталей — `/activities/ACTIVITY_ID`), заголовок `Authorization: Bearer $STRAVA_ACCESS_TOKEN`. Документация: skill strava (SKILL.md). Сначала exec с запросом к API — потом ответ. Не писать «нужно подключить» — подключено.
+- **Для советников Sport / Health / питание:** при рекомендациях по нагрузке, восстановлению, плану тренировок — использовать данные Strava. Если в workspace есть `data/strava-snapshot.md` (снимок активностей и статистики) — прочитать его через read; при необходимости актуализировать через exec к API или подождать следующего обновления снимка по cron.
 
 ## Google / Gog (gog)
 

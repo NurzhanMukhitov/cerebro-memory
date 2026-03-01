@@ -583,6 +583,15 @@ node scripts/rss.js check
    ```
    В ответе взять новые `access_token` и `refresh_token`, вписать их в `deploy/strava.env` (STRAVA_ACCESS_TOKEN и STRAVA_REFRESH_TOKEN), затем выполнить `./deploy/apply-strava.sh` и перезапуск gateway на VPS. На VPS можно то же сделать вручную, обновив `~/.openclaw/strava.env` и выполнив `systemctl --user restart openclaw-gateway`.
 
+**Снимок Strava для советников Sport / Health / питание:** Чтобы советники (Sport, Health, питание в связи с нагрузкой) имели под рукой актуальный срез активностей и статистики, на VPS можно раз в день формировать снимок. Выполнить на VPS:
+   ```bash
+   bash ~/cerebro-memory/deploy/strava-sync-to-workspace.sh
+   ```
+   Скрипт пишет в `~/.openclaw/workspace/data/strava-snapshot.md` последние 60 активностей и YTD-сводку. Агент при запросах к Sport/Health может читать этот файл и при необходимости дополнять данными через exec к API. **Cron (раз в день):** в `crontab -e` пользователя cerebro добавить (подставить загрузку strava.env перед скриптом):
+   ```bash
+   5 6 * * * . ~/.openclaw/strava.env 2>/dev/null; bash ~/cerebro-memory/deploy/strava-sync-to-workspace.sh
+   ```
+
 **Дубликат после напоминания («Subagent main finished» + «Готово: дождался … и отправил»):** в OpenClaw **2026.2.25** опция `agents.defaults.subagents.announce = "skip"` **не поддерживается** — при добавлении этого ключа gateway падает с «Unrecognized key: announce». Скрипт `~/cerebro-memory/deploy/subagent-announce-skip.sh` пока **не запускать**. После выхода версии OpenClaw с [PR #13303](https://github.com/openclaw/openclaw/pull/13303) (announce: user|parent|skip) обновите OpenClaw, затем выполните скрипт и перезапуск gateway. Если уже добавили ключ и gateway не стартует — удалить: `jq 'del(.agents.defaults.subagents.announce)' ~/.openclaw/openclaw.json > ~/.openclaw/openclaw.json.tmp && mv ~/.openclaw/openclaw.json.tmp ~/.openclaw/openclaw.json` и `systemctl --user restart openclaw-gateway`.
 
 Логи при проблемах: `journalctl --user -u openclaw-gateway -n 50 --no-pager`.
