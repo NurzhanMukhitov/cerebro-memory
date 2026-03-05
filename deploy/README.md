@@ -247,7 +247,10 @@ systemctl --user restart openclaw-gateway
 
 **Предварительно:** на VPS должны быть настроены vdirsyncer и khal (CalDAV, например Larnilane/Mail.ru: Рабочий, Личный и др.). Коллекции синхронизируются в локальные каталоги; перед установкой skill убедись, что `vdirsyncer sync` и `khal list` работают под пользователем `cerebro`.
 
-**Часовой пояс:** если в боте время событий на час назад — в `~/.config/khal/config` в секции `[locale]` добавь `local_timezone = Europe/Madrid` (или свой пояс). Без этого khal использует системный TZ VPS (часто UTC). При добавлении событий агенту передавать время в Madrid, не в UTC — иначе в календаре будет сдвиг (см. manifest: правила про Мск↔Мадрид и перевод часов Испании).
+**Часовой пояс:** в `~/.config/khal/config` в секции `[locale]` обязательно задать:
+- `local_timezone = Europe/Madrid` — как отображать время в khal;
+- `default_timezone = Europe/Madrid` — в каком поясе создавать новые события (чтобы в .ics писался TZID=Europe/Madrid, а не «плавающее» время без пояса).
+Без `default_timezone` khal пишет в .ics время без TZID; сервер Mail.ru может трактовать его как московское, и на Mac в Мадриде событие покажется на 2 часа раньше (например 12:00 станет 10:00). При добавлении событий агенту передавать время в Madrid; см. также manifest (Мск↔Мадрид, перевод часов Испании).
 
 **Время «который час?» отстаёт на час:** на VPS системный TZ = UTC, а `session_status` берёт время процесса. Нужно запускать gateway с TZ пользователя. В unit сервиса `~/.config/systemd/user/openclaw-gateway.service` добавить (один раз): `Environment=TZ=Europe/Madrid`, затем `systemctl --user daemon-reload` и `systemctl --user restart openclaw-gateway`.
 
@@ -260,6 +263,10 @@ systemctl --user restart openclaw-gateway
 ```
 
 Проверка в Telegram: «Что у меня на неделе?», «Встречи на завтра», «Расписание на понедельник».
+
+**Почему после добавления/удаления события ботом нужно обновить календарь на Mac (⌘R):** бот меняет календарь через khal/vdirsyncer на VPS, данные уходят на CalDAV‑сервер. Календарь на Mac — отдельный клиент: он не получает push-уведомлений от сервера и подтягивает изменения только при следующей синхронизации (авто — раз в несколько минут, или вручную ⌘R). Автоматически заставить «мгновенно» обновиться календарь на Mac нельзя; можно лишь напомнить в ответ бота: «Событие добавлено/изменено — обнови календарь (⌘R), если не видишь».
+
+**Важно: после изменений календаря (khal add/delete/edit) обязательно запускать `vdirsyncer sync`** — иначе изменения остаются только в локальной папке на VPS и не попадают на CalDAV‑сервер (Mail.ru). Тогда на Mac после ⌘R дубликаты или старые события могут оставаться. На VPS под пользователем cerebro: после любого изменения календаря ботом нужно выполнить `vdirsyncer sync` (вручную или через exec, если агент умеет). Как страховку можно поставить cron каждые 2 мин: `*/2 * * * * /usr/bin/vdirsyncer sync` (или `vdirsyncer sync` с нужным PATH).
 
 **Если бот пишет «календарь не подключён» / «нет доступа»:** (1) Логи gateway: `journalctl --user -u openclaw-gateway -n 100 --no-pager`. (2) Детальный лог (вызовы tool): `tail -200 /tmp/openclaw/openclaw-$(date +%Y-%m-%d).log` — искать `embedded run tool` и имя tool (если нет вызова caldav/khal/calendar — модель не вызывает инструмент; в манифесте явно указано вызывать инструмент с именем/описанием caldav_calendar, khal, calendar). (3) При ошибке `khal: command not found` — добавить PATH в user unit и сделать `systemctl --user daemon-reload`.
 
@@ -286,6 +293,32 @@ crontab -e
 ```
 
 Проверка вручную: `bash ~/cerebro-memory/deploy/calendar-reminder-15min.sh` — при наличии события в окне 12–18 мин в чат должно прийти одно сообщение. Дедуп: уже отправленные события записываются в `~/.openclaw/calendar-15m-sent`, повторно не шлются.
+
+### 8.3 Вечерний health check‑in (сон, питание, тренировки)
+
+Идея: каждый вечер Cerebro сам задаёт вопрос про сон, питание и активность за день, а ответ ты пишешь в свободной форме. Агент использует этот ответ как ручной health‑лог (папка `health/`) вместе с данными Apple Health / Strava / Ultrahuman.
+
+Скрипт `deploy/health-evening-checkin.sh` просто отправляет в Telegram сообщение с запросом вечёрнего отчёта по здоровью за текущий день.
+
+**Требования на VPS:** curl. Токен и chat_id для отправки в Telegram задаются в `~/.openclaw/health-checkin.env` (тот же бот и чат, что у gateway):
+
+```bash
+# ~/.openclaw/health-checkin.env (chmod 600)
+TELEGRAM_BOT_TOKEN=123456:ABC...
+TELEGRAM_CHAT_ID=211683644
+# Опционально: если хочешь свой текст сообщения целиком:
+# TEXT_OVERRIDE="свой текст напоминания..."
+```
+
+**Cron** (под пользователем cerebro): запускать скрипт один раз в день в выбранное время, например в 21:30:
+
+```bash
+crontab -e
+# добавить строку (путь к репо — свой, время — по своему часовому поясу на VPS):
+30 21 * * * /home/cerebro/cerebro-memory/deploy/health-evening-checkin.sh
+```
+
+Проверка вручную: `bash ~/cerebro-memory/deploy/health-evening-checkin.sh` — в чат должно прийти одно сообщение с текстом вечернего health check‑in.
 
 ### 9. Фаза 6: Systemd
 
