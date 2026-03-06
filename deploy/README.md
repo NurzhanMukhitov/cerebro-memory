@@ -115,9 +115,13 @@ systemctl --user restart openclaw-gateway
 # На VPS; с локальной машины: ./deploy/run-on-vps.sh "bash ~/cerebro-memory/deploy/setup-workspace-links.sh"
 ln -sf ~/cerebro-memory/health ~/.openclaw/workspace/health
 ln -sf ~/cerebro-memory/protocols ~/.openclaw/workspace/protocols
+mkdir -p ~/.openclaw/workspace/skills
+ln -sf ~/cerebro-memory/skills/health-data ~/.openclaw/workspace/skills/health-data
 ```
 
 Либо выполнить скрипт из репо: `bash ~/cerebro-memory/deploy/setup-workspace-links.sh`. После этого бот сможет читать `data/apple-health-snapshot.md` (если снимок уже залит) и `health/log-*.md`. Перезапуск gateway не обязателен.
+
+**Skill health-data (рекомендуется):** в репо есть skill `skills/health-data/` — он попадает в список skills OpenClaw. По документации OpenClaw модель получает инструкцию: «если подходит ровно один skill — прочитай его SKILL.md через read, затем следуй ему». В нашем SKILL.md написано: сначала вызвать `read` для `data/apple-health-snapshot.md`, затем отвечать по содержимому. Скрипт `setup-workspace-links.sh` создаёт симлинк `~/.openclaw/workspace/skills/health-data` → репо; после этого при вопросе о здоровье модель должна выбрать skill health-data, прочитать SKILL.md и выполнить инструкцию (read снимка → ответ). Это тот же механизм, что и у остальных skills.
 
 **Обходной путь, если бот не вызывает read:** если модель по-прежнему не вызывает инструмент read и пишет «нет данных из Health», можно подгружать срез данных в контекст при каждом запросе через хук **bootstrap-extra-files**. (1) На VPS после заливки снимка выполнить: `bash ~/cerebro-memory/deploy/update-health-bootstrap.sh` — скрипт создаёт `~/.openclaw/workspace/data/HEARTBEAT.md` (первые ~6 KB снимка). (2) В конфиг OpenClaw на VPS (`~/.openclaw/openclaw.json`) добавить хук (если секции `hooks` ещё нет — создать по образцу из [документации](https://docs.openclaw.ai/automation/hooks#bootstrap-extra-files)): в `hooks.internal.entries["bootstrap-extra-files"]` задать `"enabled": true` и `"paths": ["data/HEARTBEAT.md"]`. (3) Перезапустить gateway. Тогда при каждом запросе в контекст будет подгружаться HEARTBEAT.md с данными о здоровье, и бот сможет отвечать по ним без вызова read. Рекомендуется запускать `update-health-bootstrap.sh` по cron (например каждый час) или после каждой заливки снимка с Mac.
 

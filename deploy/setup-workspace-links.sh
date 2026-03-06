@@ -18,6 +18,8 @@ if [ ! -d "$WS" ]; then
 fi
 
 mkdir -p "$WS"
+mkdir -p "$WS/skills"
 ln -sf "$REPO/health" "$WS/health"
 ln -sf "$REPO/protocols" "$WS/protocols"
-echo "Симлинки созданы: $WS/health -> $REPO/health, $WS/protocols -> $REPO/protocols"
+ln -sf "$REPO/skills/health-data" "$WS/skills/health-data"
+echo "Симлинки созданы: health, protocols, skills/health-data"
