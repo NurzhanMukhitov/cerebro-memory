@@ -24,6 +24,10 @@ Use this skill when the user asks: "есть данные с health?", "полу
 
 They mean: use **this** skill. The data is already in the workspace — call `read` with path `data/apple-health-snapshot.md`, then answer from the file content. You do not need any other skill or "connection" to Apple Health.
 
+## Relation to OpenClaw healthkit-sync / healthsync
+
+The file `data/apple-health-snapshot.md` is **filled by the healthsync pipeline** (iOS app + healthsync CLI on a Mac; see OpenClaw skill **healthkit-sync** for pairing, `healthsync fetch`, and data types). The snapshot is then copied to this workspace (e.g. via `apple-health-push-snapshot.sh`). **This skill (health-data)** is for the agent on **this** machine: read that file and answer from it. You do not run healthsync here — the file is already here.
+
 ## Short rule
 
 **Read `data/apple-health-snapshot.md` with the read tool before any answer about health status, "есть данные с health", or "получи через skills".**

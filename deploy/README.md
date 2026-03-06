@@ -767,15 +767,12 @@ healthsync fetch --types steps,heartRate,sleepAnalysis --start 2026-01-01 --end 
   `cd /путь/к/cerebro-memory && ./deploy/apple-health-push-snapshot.sh`
 - **Проверить, что cron стоит:** `crontab -l` — должна быть строка с `apple-health-push-snapshot.sh` и `0 21 * * *`.
 
-**Шаг 7 (опционально). Skill для агента на VPS**
+**Связка с OpenClaw skills (healthkit-sync и наш health-data)**
 
-Чтобы агент знал форматы и типы данных Health, в workspace на VPS можно добавить skill:
+- **healthkit-sync** (OpenClaw/ClawHub) — skill про **синхронизацию**: как настроить healthsync CLI на Mac, pairing с iPhone, команды `healthsync fetch`, типы данных (steps, heartRate, sleepAnalysis и т.д.). Рассчитан на среду, где есть Mac и healthsync. Агент на **VPS** не может вызывать healthsync (на VPS нет ни healthsync, ни iPhone в одной сети).
+- **health-data** (наш skill в репо `skills/health-data/`) — для агента на **VPS**: как **получить** данные о здоровье здесь и сейчас. Файл `data/apple-health-snapshot.md` уже залит на VPS скриптом с Mac (который как раз использует healthsync на Mac). Этот skill говорит агенту: читай этот файл через `read` и отвечай по нему. Итог: синхронизацию делают Mac + healthsync + наш скрипт; агент на VPS работает с **результатом** через skill **health-data** и файл в workspace.
 
-```bash
-npx playbooks add skill openclaw/skills --skill healthkit-sync
-```
-
-Документация по типам данных и командам — в SKILL.md skill’а.
+Опционально: поставить **healthkit-sync** на VPS (`npx playbooks add skill openclaw/skills --skill healthkit-sync` или через ClawHub), чтобы бот видел справку по типам данных и форматам; для доступа к данным в чате всё равно нужен **health-data** и файл `data/apple-health-snapshot.md`.
 
 ---
 
