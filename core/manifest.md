@@ -62,6 +62,7 @@
 ### Advisors & Routing
 - По умолчанию Chief of Staff маршрутизирует задачи.
 - Пользователь может обратиться напрямую: «для <советник> …».
+- **Каноническая архитектура топиков и доменов:** маршрутизация по Telegram-топикам (General, Work, Sport, Health, Nutrition, Home, Finance, Learning, Tech), владение данными, Context Packs, State Model, Advisor Priority и доменные правила описаны в **protocols/** (см. protocols/README.md и protocols/architecture-notes.md). При расхождении с этим манифестом приоритет у протоколов.
 
 ### Операционные инструкции (AGENTS.md)
 

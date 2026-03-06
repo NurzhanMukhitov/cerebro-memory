@@ -396,6 +396,18 @@ crontab -e
 
 ---
 
+## Архитектура и протоколы
+
+Каноническая архитектура топиков, доменов и данных описана в **protocols/** в корне репо.
+
+- **protocols/README.md** — обзор: системные протоколы (Execution Flow, Context Packs, Data Ownership, State Model, Write Intent, Advisor Priority и др.) и доменные протоколы (General, Work, Sport, Health, Food, Home, Finance, Learning, Tech).
+- **protocols/architecture-notes.md** — нейминг (Telegram Topic ↔ Internal Domain), роутинг по топикам, владение данными, целевая архитектура (state/current-state.json, Commit Layer — на первом этапе не реализуется).
+- **protocols/domains/** — по одному файлу на домен с правилами агента, источниками данных и поведением по состоянию.
+
+После обновления репо (`git pull` в `~/cerebro-memory`) папка `protocols/` доступна агенту в workspace; перезапуск gateway не обязателен для чтения новых файлов, но для применения изменений в `core/manifest.md` или `core/agents.md` нужен `systemctl --user restart openclaw-gateway`.
+
+---
+
 ## Запуск команд на VPS с локальной машины
 
 Чтобы запускать команды на VPS без ввода пароля (и чтобы агент мог вызывать `run-on-vps.sh`), один раз настрой вход по SSH-ключу.
