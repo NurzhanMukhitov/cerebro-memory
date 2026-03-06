@@ -109,6 +109,16 @@ ln -sf ~/cerebro-memory/core/tools.md ~/.openclaw/workspace/TOOLS.md
 systemctl --user restart openclaw-gateway
 ```
 
+**Чтобы бот в топике «Здоровье» видел данные Apple Health и health-логи:** workspace на VPS — это `~/.openclaw/workspace`. Снимок Apple Health попадает в `~/.openclaw/workspace/data/` (скрипт `apple-health-push-snapshot.sh` с Mac копирует туда файл). Папка **health** (лог по дням `health/log-YYYY-MM-DD.md`) лежит в репо `~/cerebro-memory/health/`, но по умолчанию не видна агенту. Нужно один раз на VPS создать симлинки:
+
+```bash
+# На VPS; с локальной машины: ./deploy/run-on-vps.sh "bash ~/cerebro-memory/deploy/setup-workspace-links.sh"
+ln -sf ~/cerebro-memory/health ~/.openclaw/workspace/health
+ln -sf ~/cerebro-memory/protocols ~/.openclaw/workspace/protocols
+```
+
+Либо выполнить скрипт из репо: `bash ~/cerebro-memory/deploy/setup-workspace-links.sh`. После этого бот сможет читать `data/apple-health-snapshot.md` (если снимок уже залит) и `health/log-*.md`. Перезапуск gateway не обязателен.
+
 Если phase3 уже выполнялся до появления user-profile, симлинк USER вручную:
 
 ```bash
@@ -391,6 +401,7 @@ crontab -e
 | phase7-monitor.sh | Мониторинг RAM |
 | update-memory.sh | Обновление репо (git pull), ручной или по cron |
 | add-audio-transcription.sh | Добавление tools.media.audio в openclaw.json (транскрипция голоса) |
+| setup-workspace-links.sh | Симлинки health/ и protocols/ в ~/.openclaw/workspace (чтобы бот видел health-логи и протоколы) |
 | copy-from-local.sh | Копирование ~/.openclaw с локальной машины |
 | run-on-vps.sh | Запуск команды на VPS по SSH (ключ в ~/.ssh/, не в репо) |
 
