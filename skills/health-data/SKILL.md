@@ -1,12 +1,14 @@
 ---
 name: health-data
-description: Answer questions about user's health status for recent days using Apple Health snapshot. When user asks "как дела по здоровью?", "оцени состояние", "есть данные с health" — read data file and reply from it.
+description: Get Health data — read data/apple-health-snapshot.md (synced from Apple Health). Use when user asks "есть данные с health?", "получи через skills", "как дела по здоровью?", "оцени состояние". This skill gives you access to the file; call read tool first.
 metadata: { "openclaw": { "emoji": "❤️" } }
 ---
 
 # Health Data (Apple Health snapshot)
 
-This skill applies when the user asks about their **health status**, **recent days health**, or whether you have **data from Health** (Apple Health).
+**This skill is how you get data from Health.** The file `data/apple-health-snapshot.md` in workspace already contains the user's Apple Health data (synced from iPhone). You do NOT need a "connection" to Apple Health — just read this file.
+
+Use this skill when the user asks: "есть данные с health?", "получи их через skills", "как дела по здоровью?", "оцени состояние", or any question about health for recent days.
 
 ## Required steps
 
@@ -18,6 +20,10 @@ This skill applies when the user asks about their **health status**, **recent da
 
 - If the user asked about several days and you need more detail, also read `health/log-YYYY-MM-DD.md` for the relevant dates (replace with actual dates, e.g. last 3–7 days).
 
+## If user said "получи через skills" / "get them via skills"
+
+They mean: use **this** skill. The data is already in the workspace — call `read` with path `data/apple-health-snapshot.md`, then answer from the file content. You do not need any other skill or "connection" to Apple Health.
+
 ## Short rule
 
-**Read `data/apple-health-snapshot.md` with the read tool before any answer about health status or "есть данные с health".**
+**Read `data/apple-health-snapshot.md` with the read tool before any answer about health status, "есть данные с health", or "получи через skills".**
