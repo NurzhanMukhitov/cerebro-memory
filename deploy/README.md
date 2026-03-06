@@ -280,6 +280,8 @@ systemctl --user restart openclaw-gateway
 
 **Если бот пишет «календарь не подключён» / «нет доступа»:** (1) Логи gateway: `journalctl --user -u openclaw-gateway -n 100 --no-pager`. (2) Детальный лог (вызовы tool): `tail -200 /tmp/openclaw/openclaw-$(date +%Y-%m-%d).log` — искать `embedded run tool` и имя tool (если нет вызова caldav/khal/calendar — модель не вызывает инструмент; в манифесте явно указано вызывать инструмент с именем/описанием caldav_calendar, khal, calendar). (3) При ошибке `khal: command not found` — добавить PATH в user unit и сделать `systemctl --user daemon-reload`.
 
+**Если в топике «Здоровье» бот пишет «не вижу данных» / «нет записей о самочувствии»:** (1) Проверить на VPS наличие файла и симлинков: `ls -la ~/.openclaw/workspace/data/apple-health-snapshot.md ~/.openclaw/workspace/health`. (2) Если `health` отсутствует — выполнить `bash ~/cerebro-memory/deploy/setup-workspace-links.sh`. (3) Снимок Apple Health заливается с Mac скриптом `./deploy/apple-health-push-snapshot.sh` (из каталога репо); после заливки файл появляется в `~/.openclaw/workspace/data/`. (4) После обновления правил в `core/tools.md` или `core/agents.md` выполнить `systemctl --user restart openclaw-gateway`, чтобы бот подхватил инструкцию «сначала вызвать read» для вопросов о здоровье.
+
 ### 8.2 Напоминание за 15 мин до события в календаре
 
 Скрипт `deploy/calendar-reminder-15min.sh` раз в 5 минут смотрит календарь (khal), находит события, которые начинаются через 12–18 мин, и шлёт в Telegram сообщение вида «⏰ Через ~15 мин: [название события]». По умолчанию учитываются только календари, в имени которых есть «Рабочий» (переменная `CALENDAR_FILTER`; чтобы напоминать обо всех — задать `CALENDAR_FILTER=*`).
