@@ -9,7 +9,7 @@ set -e
 WS="${OPENCLAW_WS:-$HOME/.openclaw/workspace}"
 SNAPSHOT="$WS/data/apple-health-snapshot.md"
 OUT="$WS/data/HEARTBEAT.md"
-MAX_LINES=100
+MAX_BYTES=5500
 
 if [ ! -f "$SNAPSHOT" ]; then
   echo "Нет файла $SNAPSHOT — сначала залей снимок (apple-health-push-snapshot.sh с Mac)." >&2
@@ -22,7 +22,8 @@ mkdir -p "$(dirname "$OUT")"
   echo ""
   echo "Данные из Apple Health за последние дни (срез для контекста агента). При вопросе о здоровье использовать эти данные."
   echo ""
-  head -n "$MAX_LINES" "$SNAPSHOT"
+  head -c "$MAX_BYTES" "$SNAPSHOT"
+  echo ""
   echo ""
   echo "[... полный снимок в data/apple-health-snapshot.md ]"
 } > "$OUT"
