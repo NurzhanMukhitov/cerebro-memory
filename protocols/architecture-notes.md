@@ -8,7 +8,7 @@
 
 ## 1) Канонический нейминг (фиксируем один раз)
 
-Важно: Telegram Topic и Internal Domain могут различаться.
+Важно: Telegram Topic и Internal Domain могут различаться. **Имя топика приходит от Telegram как есть** (если топик создан с названием "Health" — gateway получает "Health"; если "Здоровье" — "Здоровье"). В правилах агента учитывать оба варианта для домена здоровья: **Health** и **Здоровье**.
 
 | Telegram Topic | Internal Domain | Primary Agent | Tag |
 |---|---|---|---|
