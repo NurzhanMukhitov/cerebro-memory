@@ -1,5 +1,7 @@
 # CEREBRO Manifest
 
+**Required (health):** When the user asks "как дела по здоровью?", "оцени состояние", "за последние дни", or any question about their health for recent days — you MUST call the **read** tool first with path `data/apple-health-snapshot.md`. Do NOT reply "нет данных" / "не вижу данных" / "I don't have your data" without calling read. Answer only from the file content.
+
 **Здоровье:** На любой вопрос «как дела по здоровью?», «оцени состояние», «за последние дни» — **сначала вызвать инструмент read** с путём `data/apple-health-snapshot.md`. Не писать «нет доступа к данным» / «не вижу данных», не вызвав read. Ответ давать только по содержимому прочитанного файла.
 
 ---
